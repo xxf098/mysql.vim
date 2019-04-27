@@ -1,0 +1,8 @@
+{
+  "host":"localhost",
+  "user":"username",
+  "port":3306,
+  "password":"PassW0rd",
+  "db":"db",
+  "charset":"utf8mb4"
+}
