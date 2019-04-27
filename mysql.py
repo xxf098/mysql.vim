@@ -22,7 +22,7 @@ def get_topline (lengths):
         dashes = dashes + ['-'] * length + ['-', '+', '-']
     dashes.pop()
     dashes.pop()
-    return ' ' + ''.join(dashes)
+    return '+' + ''.join(dashes) + '+'
 
 def get_bottomline (lengths):
     dashes = []
@@ -30,7 +30,7 @@ def get_bottomline (lengths):
         dashes = dashes + ['-'] * length + ['-', '+', '-']
     dashes.pop()
     dashes.pop()
-    return ' ' + ''.join(dashes)
+    return '+' + ''.join(dashes) + '+'
 
 
 
@@ -49,13 +49,14 @@ def print_rows (rows):
     table_line = get_middleline(lengths)
     print(get_topline(lengths))
     print(header_str)
+    print(table_line)
     for value in values:
         valueStr = padding_row(value, lengths)
-        print(table_line)
+        # print(table_line)
         print(valueStr)
     print(get_bottomline(lengths))
 
-with open('config.json') as config_file:
+with open('/home/arch/Documents/mysql.vim/config.json') as config_file:
     data = json.load(config_file)
 
 connection = pymysql.connect(**data, cursorclass=pymysql.cursors.DictCursor)
