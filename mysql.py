@@ -1,6 +1,7 @@
 import pymysql.cursors
 import json
 from functools import reduce
+import os
 
 def padding_row (row, lengths):
     result = ''
@@ -56,7 +57,9 @@ def print_rows (rows):
         print(valueStr)
     print(get_bottomline(lengths))
 
-with open('/home/arch/Documents/mysql.vim/config.json') as config_file:
+dir_path = os.path.dirname(os.path.realpath(__file__))
+config_path = os.path.join(dir_path, 'config.json')
+with open(config_path) as config_file:
     data = json.load(config_file)
 
 connection = pymysql.connect(**data, cursorclass=pymysql.cursors.DictCursor)
