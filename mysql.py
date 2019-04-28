@@ -1,12 +1,23 @@
 import pymysql.cursors
-import json, os, sys, traceback
+import json, os, sys, traceback, re
 from functools import reduce
+
+def get_str_length (s):
+    if s is None:
+        return 0
+    chinese_len = 0
+    # TODO: refactor
+    for c in str(s):
+        if re.match(r'[\u4e00-\u9fff]', c):
+            chinese_len = chinese_len + 1
+    non_chinese_len = len(str(s)) - chinese_len
+    return int(chinese_len * 2 + non_chinese_len)
 
 def padding_row (row, lengths):
     result = ''
     for i,data  in enumerate(row):
         data = str(data) if data is not None else ''
-        padding = [' '] * (lengths[i] - len(data))
+        padding = [' '] * (lengths[i] - get_str_length(data))
         result = result + data + ''.join(padding) + ' | '
     return '|' + result
 
@@ -33,8 +44,6 @@ def get_bottomline (lengths):
     dashes.pop()
     return '+' + ''.join(dashes) + '+'
 
-
-
 def print_rows (rows):
     if len(rows) == 0:
         return
@@ -43,7 +52,7 @@ def print_rows (rows):
     values = []
     for row in rows:
         value = list(row.values())
-        value_lens = [len(str(x)) if x is not None else 0 for x in value]
+        value_lens = [get_str_length(x) if x is not None else 0 for x in value]
         lengths = [ x if x > lengths[i] else lengths[i] for i, x in enumerate(value_lens)]
         values.append(value)
     header_str = padding_row(headers, lengths)
