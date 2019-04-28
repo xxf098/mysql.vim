@@ -38,7 +38,7 @@ def print_rows (rows):
     if len(rows) == 0:
         return
     headers = list(rows[0].keys())
-    lengths = [0] * len(headers)
+    lengths = [len(x) for x in headers]
     values = []
     for row in rows:
         value = list(row.values())
