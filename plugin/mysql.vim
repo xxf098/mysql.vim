@@ -1,8 +1,8 @@
 "py3file mysql.py
 function! g:DisplaySQLQueryResult()
   let sql = getline('.')
-  let cmd = "python3 ~/.config/nvim/plugged/mysql.vim/mysql.py \"" . sql . "\""
-  :echom cmd
+  let sql = substitute(sql, "`", "\\\\`", "g")
+  let cmd = 'python3 ~/.config/nvim/plugged/mysql.vim/mysql.py "' . sql . '"'
   let result = system(cmd)
   let output = result
   let logBufName = "__SQL_Query_Result"
