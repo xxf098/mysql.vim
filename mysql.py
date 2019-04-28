@@ -5,13 +5,9 @@ from functools import reduce
 def get_str_length (s):
     if s is None:
         return 0
-    chinese_len = 0
-    # TODO: refactor
-    for c in str(s):
-        if re.match(r'[\u4e00-\u9fff]', c):
-            chinese_len = chinese_len + 1
+    chinese_len = len([1 for c in str(s) if re.match(r'[\u4e00-\u9fff]', c)])
     non_chinese_len = len(str(s)) - chinese_len
-    return int(chinese_len * 2 + non_chinese_len)
+    return chinese_len * 2 + non_chinese_len
 
 def padding_row (row, lengths):
     result = ''
