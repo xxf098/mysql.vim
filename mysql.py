@@ -1,7 +1,6 @@
 import pymysql.cursors
-import json
+import json, os, sys, traceback
 from functools import reduce
-import os
 
 def padding_row (row, lengths):
     result = ''
@@ -57,15 +56,26 @@ def print_rows (rows):
         print(valueStr)
     print(get_bottomline(lengths))
 
+# parse args
+if len(sys.argv) < 2:
+    print("need sql to continue")
+    exit(1)
+
+sql = sys.argv[1]
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 config_path = os.path.join(dir_path, 'config.json')
 with open(config_path) as config_file:
     data = json.load(config_file)
 
 connection = pymysql.connect(**data, cursorclass=pymysql.cursors.DictCursor)
-with connection.cursor() as cursor:
-    sql = "select id, username, phone from users order by created_at limit 10;"
-    cursor.execute(sql)
-    result = cursor.fetchall()
-    print_rows(result)
-
+try:
+    with connection.cursor() as cursor:
+        # sql = "select id, username, phone from users order by created_at limit 10;"
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        print_rows(result)
+except Exception as e:
+    print(traceback.print_exc())
+finally:
+    connection.close()
