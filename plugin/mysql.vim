@@ -15,6 +15,7 @@ function! g:DisplaySQLQueryResult()
     execute 'f ' . logBufName
   endif
   setlocal modifiable
+  setlocal nowrap
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
   silent! normal! ggdG
   call setline('.', split(substitute(output, '[[:return:]]', '', 'g'), '\v\n'))
