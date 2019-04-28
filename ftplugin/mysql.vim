@@ -22,5 +22,4 @@ function! g:DisplaySQLQueryResult()
   silent! normal! zR
   " setlocal nomodifiable
 endfunction
-"TODO: ftplug
-autocmd BufRead,BufNewFile *.mysql nnoremap <buffer><silent> re :call g:DisplaySQLQueryResult()<cr>
+nnoremap <buffer><silent> re :call g:DisplaySQLQueryResult()<cr>
