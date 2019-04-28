@@ -1,3 +1,8 @@
+" TODO: sort
+" TODO: manage table
+" TODO: Table Info
+" TODO: jump to foreign key
+" TODO: export data
 " n jump forward column
 " N jump backward column
 function! g:JumpToNextColumn(direction)
