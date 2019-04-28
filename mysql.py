@@ -5,6 +5,7 @@ from functools import reduce
 def padding_row (row, lengths):
     result = ''
     for i,data  in enumerate(row):
+        data = str(data) if data is not None else ''
         padding = [' '] * (lengths[i] - len(data))
         result = result + data + ''.join(padding) + ' | '
     return '|' + result
@@ -42,7 +43,7 @@ def print_rows (rows):
     values = []
     for row in rows:
         value = list(row.values())
-        value_lens = [len(x) for x in value]
+        value_lens = [len(str(x)) if x is not None else 0 for x in value]
         lengths = [ x if x > lengths[i] else lengths[i] for i, x in enumerate(value_lens)]
         values.append(value)
     header_str = padding_row(headers, lengths)
