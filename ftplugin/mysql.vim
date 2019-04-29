@@ -25,7 +25,7 @@ function! g:JumpToNextColumn(direction)
   call cursor(line('.'), next_col_position)
 endfunction
 
-function! s:DisplaySQLQueryResult(result)
+function! s:DisplaySQLQueryResult(result, options)
   let output = a:result
   let logBufName = "__SQL_Query_Result"
   let bufferNum = bufnr('^' . logBufName)
@@ -44,6 +44,9 @@ function! s:DisplaySQLQueryResult(result)
   silent! normal! ggdG
   call setline('.', split(substitute(output, '[[:return:]]', '', 'g'), '\v\n'))
   silent! normal! zR
+  if get(a:options, 'file_type', '') != ''
+    setlocal syntax=mysql
+  endif
   " setlocal nomodifiable
 endfunction
 
@@ -52,11 +55,16 @@ function! g:RunSQLQueryUnderCursor()
   let sql = substitute(sql, "`", "\\\\`", "g")
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
-  :call s:DisplaySQLQueryResult(result)
+  :call s:DisplaySQLQueryResult(result, {})
 endfunction
 
 function! g:DescribeTableUnderCursor()
-  let current_word = expand("<cword>")
+  let table_name = expand("<cword>")
+  let sql = 'SHOW CREATE TABLE ' . table_name . ';'
+  let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
+  let result = system(cmd)
+  let options = {'file_type': 'mysql'}
+  :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
