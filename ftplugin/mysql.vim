@@ -4,6 +4,7 @@
 " TODO: jump to foreign key
 " TODO: export data
 " TODO: trancate = true
+" TODO: support range
 " n jump forward column
 " N jump backward column
 let s:MySQLPyPath = '~/.config/nvim/plugged/mysql.vim/mysql.py'
@@ -25,6 +26,35 @@ function! g:JumpToNextColumn(direction)
   call cursor(line('.'), next_col_position)
 endfunction
 
+function! s:CompleteTableHeaders(argLead, cmdLine, curosrPos)
+  let all_headers = get(b:, 'TableHeaders', [])
+  if a:argLead == ''
+    return all_headers
+  endif
+  let result = []
+  for header in all_headers
+    if header =~? '^' . a:argLead
+      call add(result, header)
+    endif
+  endfor
+  return result
+endfunction
+
+function! s:JumpToColumnByName(columnName)
+  if len(a:columnName) == 0
+    return
+  endif
+  let current_line = line('.')
+  execute "normal! gg"
+  let pattern = '|\s'. a:columnName . '\s\+|'
+  let line_num = search(pattern, 'nc')
+  if line_num != 0
+    let column_pos = match(getline(line_num), pattern)
+    :call cursor(line_num, column_pos+1)
+    execute 'normal! ' . (current_line-line_num) . 'j'
+  endif
+endfunction
+
 function! s:DisplaySQLQueryResult(result, options)
   let output = a:result
   let logBufName = "__SQL_Query_Result"
@@ -41,8 +71,22 @@ function! s:DisplaySQLQueryResult(result, options)
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
   nnoremap <silent><buffer> n :call g:JumpToNextColumn('forward')<cr>
   nnoremap <silent><buffer> N :call g:JumpToNextColumn('backward')<cr>
+  command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
   silent! normal! ggdG
-  call setline('.', split(substitute(output, '[[:return:]]', '', 'g'), '\v\n'))
+  let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
+  "remove headers
+  if get(a:options, 'hide_header') == 1
+    let idx = 0
+    while idx < len(lines)
+      if lines[idx] =~? '^Headers:'
+        let b:TableHeaders = split(strpart(lines[idx], 9), ',')
+        call remove(lines, idx)
+        break
+      endif
+      let idx += 1
+    endwhile
+  endif
+  call setline('.', lines)
   silent! normal! zR
   if get(a:options, 'file_type', '') != ''
     setlocal syntax=mysql
@@ -55,7 +99,8 @@ function! g:RunSQLQueryUnderCursor()
   let sql = substitute(sql, "`", "\\\\`", "g")
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
-  :call s:DisplaySQLQueryResult(result, {})
+  let options = {'hide_header': 1}
+  :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
 function! g:DescribeTableUnderCursor()
@@ -73,6 +118,7 @@ function! g:ExplainMySQLQuery()
   let sql = 'EXPLAIN ' . sql
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
+  let options = {'hide_header': 1}
   :call s:DisplaySQLQueryResult(result, {})
 endfunction
 
