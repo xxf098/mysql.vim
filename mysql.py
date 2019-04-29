@@ -62,6 +62,22 @@ def print_rows (rows):
         print(valueStr)
     print(get_bottomline(lengths))
 
+#support list
+def load_config ():
+    try:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        config_path = os.path.join(dir_path, 'config.json')
+        with open(config_path) as config_file:
+            data = json.load(config_file)
+            if isinstance(data, list):
+                enableData = [x for x in data if x.get('enable', None) == True]
+                data = enableData[0] if len(enableData) > 0 else data[0]
+                data.pop('enable', None)
+            return data
+    except Exception as e:
+        print(traceback.print_exc())
+        exit(1)
+
 # parse args
 if len(sys.argv) < 2:
     print("need sql to continue")
@@ -69,15 +85,11 @@ if len(sys.argv) < 2:
 
 sql = sys.argv[1]
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-config_path = os.path.join(dir_path, 'config.json')
-with open(config_path) as config_file:
-    data = json.load(config_file)
+data = load_config()
 
 connection = pymysql.connect(**data, cursorclass=pymysql.cursors.DictCursor)
 try:
     with connection.cursor() as cursor:
-        # sql = "select id, username, phone from users order by created_at limit 10;"
         cursor.execute(sql)
         result = cursor.fetchall()
         print_rows(result)
