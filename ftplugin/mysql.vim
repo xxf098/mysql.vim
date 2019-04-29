@@ -67,5 +67,15 @@ function! g:DescribeTableUnderCursor()
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
+function! g:ExplainMySQLQuery()
+  let sql = getline('.')
+  let sql = substitute(sql, "`", "\\\\`", "g")
+  let sql = 'EXPLAIN ' . sql
+  let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
+  let result = system(cmd)
+  :call s:DisplaySQLQueryResult(result, {})
+endfunction
+
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor()<cr>
+nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
