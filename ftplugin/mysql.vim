@@ -3,8 +3,10 @@
 " TODO: Table Info
 " TODO: jump to foreign key
 " TODO: export data
+" TODO: trancate = true
 " n jump forward column
 " N jump backward column
+let s:MySQLPyPath = '~/.config/nvim/plugged/mysql.vim/mysql.py'
 function! g:JumpToNextColumn(direction)
   let current_line = getline('.')
   let next_col_position = col('.')
@@ -23,12 +25,8 @@ function! g:JumpToNextColumn(direction)
   call cursor(line('.'), next_col_position)
 endfunction
 
-function! g:DisplaySQLQueryResult()
-  let sql = getline('.')
-  let sql = substitute(sql, "`", "\\\\`", "g")
-  let cmd = 'python3 ~/.config/nvim/plugged/mysql.vim/mysql.py "' . sql . '"'
-  let result = system(cmd)
-  let output = result
+function! s:DisplaySQLQueryResult(result)
+  let output = a:result
   let logBufName = "__SQL_Query_Result"
   let bufferNum = bufnr('^' . logBufName)
   if bufferNum == -1
@@ -49,4 +47,17 @@ function! g:DisplaySQLQueryResult()
   " setlocal nomodifiable
 endfunction
 
-nnoremap <buffer><silent> re :call g:DisplaySQLQueryResult()<cr>
+function! g:RunSQLQueryUnderCursor()
+  let sql = getline('.')
+  let sql = substitute(sql, "`", "\\\\`", "g")
+  let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
+  let result = system(cmd)
+  :call s:DisplaySQLQueryResult(result)
+endfunction
+
+function! g:DescribeTableUnderCursor()
+  let current_word = expand("<cword>")
+endfunction
+
+nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
+nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor()<cr>
