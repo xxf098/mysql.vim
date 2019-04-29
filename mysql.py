@@ -53,6 +53,7 @@ def print_rows (rows):
         values.append(value)
     header_str = padding_row(headers, lengths)
     table_line = get_middleline(lengths)
+    print('Headers: ' + ','.join(headers))
     print(get_topline(lengths))
     print(header_str)
     print(table_line)
