@@ -62,6 +62,12 @@ def print_rows (rows):
         print(valueStr)
     print(get_bottomline(lengths))
 
+def print_show_table(result):
+    if len(result) < 1:
+        return
+    create_table = result[0].get('Create Table', '')
+    print(create_table)
+
 #support list
 def load_config ():
     try:
@@ -92,7 +98,10 @@ try:
     with connection.cursor() as cursor:
         cursor.execute(sql)
         result = cursor.fetchall()
-        print_rows(result)
+        if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
+            print_show_table(result)
+        else:
+            print_rows(result)
 except Exception as e:
     print(traceback.print_exc())
 finally:
