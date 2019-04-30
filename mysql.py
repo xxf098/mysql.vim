@@ -101,13 +101,30 @@ def run_sql_query(sql):
     finally:
         connection.close()
 
+def get_all_tables():
+    config = load_config()
+    connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
+    sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            print_rows(result)
+    except Exception as e:
+        print(traceback.print_exc())
+    finally:
+        connection.close()
+
 # parse args
 if len(sys.argv) < 2:
     print("need sql to continue")
     exit(1)
 
-sql = sys.argv[1]
-run_sql_query(sql)
+arg = sys.argv[1]
+if arg == '--table':
+    get_all_tables()
+else:
+    run_sql_query(arg)
 
 #TODO: odbc flavor
 #TODO: vim refactor vscode mssql
