@@ -57,6 +57,7 @@ function! s:JumpToColumnByName(columnName)
 endfunction
 
 function! s:DisplaySQLQueryResult(result, options)
+  let options = a:options
   let output = a:result
   let logBufName = "__SQL_Query_Result"
   let bufferNum = bufnr('^' . logBufName)
@@ -70,13 +71,15 @@ function! s:DisplaySQLQueryResult(result, options)
   setlocal modifiable
   setlocal nowrap
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
-  nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
-  nnoremap <silent><buffer> N :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
-  command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
+  if get(options, 'table_name', 0) != 1
+    nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
+    nnoremap <silent><buffer> N :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
+    command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
+  endif
   silent! normal! ggdG
   let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
   "remove headers
-  if get(a:options, 'hide_header') == 1
+  if get(options, 'hide_header') == 1
     let idx = 0
     while idx < len(lines)
       if lines[idx] =~? '^Headers:'
@@ -120,9 +123,18 @@ function! g:ExplainMySQLQuery()
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
   let options = {'hide_header': 1}
-  :call s:DisplaySQLQueryResult(result, {})
+  :call s:DisplaySQLQueryResult(result, options)
+endfunction
+
+"TODO: display table schema
+function! s:ShowAllTableNames()
+  let cmd = 'python3 ' . s:MySQLPyPath . ' --table'
+  let result = system(cmd)
+  let options = { 'table_name': 1 }
+  :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor()<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
+command! Table :call s:ShowAllTableNames()
