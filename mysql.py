@@ -85,25 +85,29 @@ def load_config ():
         print(traceback.print_exc())
         exit(1)
 
+def run_sql_query(sql):
+    config = load_config()
+    connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
+                print_show_table(result)
+            else:
+                print_rows(result)
+    except Exception as e:
+        print(traceback.print_exc())
+    finally:
+        connection.close()
+
 # parse args
 if len(sys.argv) < 2:
     print("need sql to continue")
     exit(1)
 
 sql = sys.argv[1]
+run_sql_query(sql)
 
-data = load_config()
-
-connection = pymysql.connect(**data, cursorclass=pymysql.cursors.DictCursor)
-try:
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
-        result = cursor.fetchall()
-        if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
-            print_show_table(result)
-        else:
-            print_rows(result)
-except Exception as e:
-    print(traceback.print_exc())
-finally:
-    connection.close()
+#TODO: odbc flavor
+#TODO: vim refactor vscode mssql
