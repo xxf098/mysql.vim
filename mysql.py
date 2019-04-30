@@ -109,7 +109,7 @@ def get_all_tables():
         with connection.cursor() as cursor:
             cursor.execute(sql)
             result = cursor.fetchall()
-            print_rows(result)
+            [print(x['table_name']) for x in result]
     except Exception as e:
         print(traceback.print_exc())
     finally:
