@@ -4,21 +4,22 @@
 " TODO: jump to foreign key
 " TODO: export data
 " TODO: trancate = true
-" TODO: support range
 " n jump forward column
 " N jump backward column
 let s:MySQLPyPath = '~/.config/nvim/plugged/mysql.vim/mysql.py'
-function! g:JumpToNextColumn(direction)
+function! g:JumpToNextColumn(direction, count)
   let current_line = getline('.')
   let next_col_position = col('.')
-  if a:direction == 'backward'
-    let next_col_position = strridx(strpart(current_line, 0, next_col_position - 1), '|')
-    :echom next_col_position
-  endif
-  if a:direction == 'forward'
-    let next_col_position = stridx(current_line, '|', next_col_position + 1)
-    :echom next_col_position
-  endif
+  let idx = 0
+  while idx < a:count
+    if a:direction == 'backward'
+      let next_col_position = strridx(strpart(current_line, 0, next_col_position - 1), '|')
+    endif
+    if a:direction == 'forward'
+      let next_col_position = stridx(current_line, '|', next_col_position + 1)
+    endif
+    let idx += 1
+  endwhile
   if next_col_position == -1
     return
   endif
@@ -69,8 +70,8 @@ function! s:DisplaySQLQueryResult(result, options)
   setlocal modifiable
   setlocal nowrap
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
-  nnoremap <silent><buffer> n :call g:JumpToNextColumn('forward')<cr>
-  nnoremap <silent><buffer> N :call g:JumpToNextColumn('backward')<cr>
+  nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
+  nnoremap <silent><buffer> N :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
   command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
   silent! normal! ggdG
   let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
