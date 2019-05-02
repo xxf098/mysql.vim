@@ -71,10 +71,12 @@ function! s:DisplaySQLQueryResult(result, options)
   setlocal modifiable
   setlocal nowrap
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
-  if get(options, 'table_name', 0) != 1
+  if get(options, 'display_table_name', 0) != 1
     nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
     nnoremap <silent><buffer> N :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
     command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
+  else
+    nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(1)<cr>
   endif
   silent! normal! ggdG
   let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
@@ -95,7 +97,6 @@ function! s:DisplaySQLQueryResult(result, options)
   if get(a:options, 'file_type', '') != ''
     setlocal syntax=mysql
   endif
-  " setlocal nomodifiable
 endfunction
 
 function! g:RunSQLQueryUnderCursor()
@@ -107,13 +108,17 @@ function! g:RunSQLQueryUnderCursor()
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
-function! g:DescribeTableUnderCursor()
+function! g:DescribeTableUnderCursor(displayRightWindow)
   let table_name = expand("<cword>")
   let sql = 'SHOW CREATE TABLE ' . table_name . ';'
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
   let options = {'file_type': 'mysql'}
-  :call s:DisplaySQLQueryResult(result, options)
+  if a:displayRightWindow == 1
+    :call s:DisplayTableInfoRightWindow(result)
+  else
+    :call s:DisplaySQLQueryResult(result, options)
+  endif
 endfunction
 
 function! g:ExplainMySQLQuery()
@@ -126,15 +131,38 @@ function! g:ExplainMySQLQuery()
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
+function! s:DisplayTableInfoRightWindow(result)
+  let output = a:result
+  let logBufName = "__SQL_Table_Info"
+  let bufferNum = bufnr('^' . logBufName)
+  let outputWin = bufwinnr(bufferNum)
+  if outputWin == -1
+    execute 'rightbelow vsplit '. logBufName
+    setlocal syntax=mysql
+    execute 'vertical resize +12'
+    setlocal buftype=nofile
+  else
+    execute outputWin . 'wincmd w'
+  endif
+  setlocal modifiable
+  setlocal nowrap
+  nnoremap <silent><buffer> q :<C-u>bd!<CR>
+  silent! normal! ggdG
+  let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
+  call setline('.', lines)
+  silent! normal! zR
+  setlocal nomodifiable
+endfunction
+
 "TODO: display table schema
 function! s:ShowAllTableNames()
   let cmd = 'python3 ' . s:MySQLPyPath . ' --table'
   let result = system(cmd)
-  let options = { 'table_name': 1 }
+  let options = { 'display_table_name': 1 }
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
-nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor()<cr>
+nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(0)<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
 command! Table :call s:ShowAllTableNames()

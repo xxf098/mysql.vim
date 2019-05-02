@@ -118,6 +118,5 @@ def main():
 
 #TODO: odbc flavor
 #TODO: vim refactor vscode mssql
-#TODO: main
 if __name__ == '__main__':
     main()
