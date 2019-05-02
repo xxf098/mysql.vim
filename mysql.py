@@ -1,7 +1,7 @@
 import pymysql.cursors
 import json, os, sys, traceback, re
 from functools import reduce
-from config import Config
+from mysql_lib import Config
 
 def get_str_length (s):
     if s is None:
@@ -118,5 +118,6 @@ def main():
 
 #TODO: odbc flavor
 #TODO: vim refactor vscode mssql
+#TODO: mysql connector load config file
 if __name__ == '__main__':
     main()
