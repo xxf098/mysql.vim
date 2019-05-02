@@ -1,6 +1,7 @@
 import pymysql.cursors
 import json, os, sys, traceback, re
 from functools import reduce
+from config import Config
 
 def get_str_length (s):
     if s is None:
@@ -69,24 +70,8 @@ def print_show_table(result):
     create_table = result[0].get('Create Table', '')
     print(create_table)
 
-#support list
-def load_config ():
-    try:
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        config_path = os.path.join(dir_path, 'config.json')
-        with open(config_path) as config_file:
-            data = json.load(config_file)
-            if isinstance(data, list):
-                enableData = [x for x in data if x.get('enable', None) == True]
-                data = enableData[0] if len(enableData) > 0 else data[0]
-                data.pop('enable', None)
-            return data
-    except Exception as e:
-        print(traceback.print_exc())
-        exit(1)
-
-def run_sql_query(sql):
-    config = load_config()
+def run_sql_query(sql, conf):
+    config = conf.load()
     connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
     try:
         with connection.cursor() as cursor:
@@ -101,8 +86,8 @@ def run_sql_query(sql):
     finally:
         connection.close()
 
-def get_all_tables():
-    config = load_config()
+def get_all_tables(conf):
+    config = conf.load()
     connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
     sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
     try:
@@ -115,16 +100,24 @@ def get_all_tables():
     finally:
         connection.close()
 
-# parse args
-if len(sys.argv) < 2:
-    print("need sql to continue")
-    exit(1)
+def main():
+    # parse args
+    if len(sys.argv) < 2:
+        print("need sql to continue")
+        exit(1)
 
-arg = sys.argv[1]
-if arg == '--table':
-    get_all_tables()
-else:
-    run_sql_query(arg)
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(dir_path, 'config.json')
+    conf = Config(config_path)
+
+    arg = sys.argv[1]
+    if arg == '--table':
+        get_all_tables(conf)
+    else:
+        run_sql_query(arg, conf)
 
 #TODO: odbc flavor
 #TODO: vim refactor vscode mssql
+#TODO: main
+if __name__ == '__main__':
+    main()
