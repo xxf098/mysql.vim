@@ -1,5 +1,5 @@
 import socket, os, json, traceback, struct
-from mysql_lib import CAPABILITIES, CONNECT_WITH_DB, PLUGIN_AUTH, MAX_PACKET_LEN, MULTI_RESULTS
+from mysql_lib import CONST
 
 
 def byte2int(b):
@@ -26,9 +26,9 @@ class DBConfig:
         self.encoding = 'utf8'
         self.charset_id = 224
         client_flag = 0
-        client_flag |= CAPABILITIES
+        client_flag |= CONST.CAPABILITIES
         if self.db:
-            client_flag |= CONNECT_WITH_DB
+            client_flag |= CONST.CONNECT_WITH_DB
         self.client_flag = client_flag
 
     @staticmethod
@@ -112,15 +112,15 @@ class Connection:
             i += salt_len
 
         i+=1
-        if self.server_capabilities & PLUGIN_AUTH and len(data) >= i:
+        if self.server_capabilities & CONST.PLUGIN_AUTH and len(data) >= i:
             server_end = data.find(b'\0', i)
             self._auth_plugin_name = (data[i:] if server_end < 0 else data[i:server_end]).decode('utf-8')
 
     def _login(self):
-        self.client_flag |= MULTI_RESULTS
+        self.client_flag |= CONST.MULTI_RESULTS
         charset_id = self.charset_id
         self.user = self.user.encode(self.encoding)
-        data_init = struct.pack('<iIB23s', self.client_flag, MAX_PACKET_LEN, charset_id, b'')
+        data_init = struct.pack('<iIB23s', self.client_flag, CONST.MAX_PACKET_LEN, charset_id, b'')
         data = data_init + self.user + b'\0'
 
     def _read_packet(self):
@@ -137,7 +137,7 @@ class Connection:
             buff += recv_data
             if bytes_to_read == 0xffffff:
                 continue
-            if bytes_to_read < MAX_PACKET_LEN:
+            if bytes_to_read < CONST.MAX_PACKET_LEN:
                 break
         packet = Packet(buff)
         packet.check_error()
