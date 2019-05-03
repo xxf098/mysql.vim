@@ -1,13 +1,15 @@
 import socket, os, json, traceback
 class DBConfig:
     def __init__(self, host='localhost', user='root', password='', db=None, port=3306,
-            connect_timeout=None,charset=''):
+            connect_timeout=None, charset=''):
         self.host = host
         self.user = user
         self.password = password
         self.db = db
         self.port = port
         self.connect_timeout = connect_timeout
+        self.charset = 'utf8mb4'
+        self.encoding = 'utf8'
 
     @staticmethod
     def load(path):
@@ -25,22 +27,60 @@ class DBConfig:
 
 class Connection:
     def __init__(self, config=None):
-        self.config = config
+        self.host = config.host
+        self.user = config.user
+        self.password = config.password
+        self.db = config.db
+        self.port = config.port
+        self.connect_timeout = config.connect_timeout
+        self.encoding = config.encoding
+        self._read_timeout = 120
+        self._write_timeout = 120
+        self.connect()
 
     def connect(self):
         try:
-            address = (self.config.host, self.config.port)
-            sock = socket.create_connection(address, self.config.connect_timeout)
+            address = (self.host, self.port)
+            sock = socket.create_connection(address, self.connect_timeout)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             self._sock = sock
+            self._rfile = sock.makefile('rb')
+            self._next_seq_id = 0
+
+            self._get_server_information()
         except Exception as e:
+            self._force_close()
             raise
 
+    def _get_server_information(self):
+        packet = self._read_packet()
+
     def _read_packet(self):
-        pass
+        packet_header = self._read_bytes(4)
+        return packet_header
+
     def _read_bytes(self, num_bytes):
-        pass
+        self._sock.settimeout(self._read_timeout)
+        try:
+            data = self._rfile.read(num_bytes)
+        except Exception as e:
+            self._force_close()
+            raise
+        if len(data) < num_bytes:
+            self._force_close()
+            raise Exception('fail to read data')
+        return data
+
+    def _force_close(self):
+        if self._sock:
+            try:
+                self._sock.close()
+            except:
+                pass
+        self._sock = None
+        self._rfile = None
+
 
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
