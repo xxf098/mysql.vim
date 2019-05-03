@@ -1,17 +1,5 @@
 import socket, os, json, traceback, struct
-from mysql_lib import CONST
-
-
-def byte2int(b):
-    if isinstance(b, int):
-        return b
-    else:
-        return struct.unpack("!B", b)[0]
-
-
-def int2byte(i):
-    return struct.pack("!B", i)
-
+from mysql_lib import CONST, _encryption, utils
 
 class DBConfig:
     def __init__(self, host='localhost', user='root', password='', db=None, port=3306,
@@ -81,7 +69,7 @@ class Connection:
         packet = self._read_packet()
         data = packet.get_all()
 
-        self.protocol_version = byte2int(data[i:i+1])
+        self.protocol_version = utils.byte2int(data[i:i+1])
         i += 1
 
         server_end = data.find(b'\0', i)
@@ -123,6 +111,41 @@ class Connection:
         data_init = struct.pack('<iIB23s', self.client_flag, CONST.MAX_PACKET_LEN, charset_id, b'')
         data = data_init + self.user + b'\0'
 
+        encrypted_pass = b''
+        plugin_name = None
+
+        if self._auth_plugin_name == '':
+            plugin_name = b''
+            encrypted_pass = _encryption.encrypt_password(self.password, self.salt)
+        elif self._auth_plugin_name == 'mysql_native_password':
+            plugin_name = b'mysql_native_password'
+            encrypted_pass = _encryption.encrypt_password(self.password, self.salt)
+
+        if self.server_capabilities & CONST.PLUGIN_AUTH_LENENC_CLIENT_DATA:
+            data += utils.lenenc_int(len(encrypted_pass)) + encrypted_pass
+        elif self.server_capabilities & CONST.SECURE_CONNECTION:
+            data += struct.pack('B', len(encrypted_pass)) + encrypted_pass
+        else:
+            data += encrypted_pass + b'\0'
+
+        if self.db and self.server_capabilities & CONST.CONNECT_WITH_DB:
+            self.db = self.db.encode(self.encoding)
+            data += self.db + b'\0'
+
+        if self.server_capabilities & CONST.PLUGIN_AUTH:
+            data += (plugin_name or b'') + b'\0'
+
+        connect_attrs = b''
+        data += struct.pack('B', len(connect_attrs)) + connect_attrs
+
+        self.write_packet(data)
+        auth_packet = self._read_packet()
+
+    def write_packet(self, payload):
+        data = utils.pack_int24(len(payload)) + utils.int2byte(self._next_seq_id) + payload
+        self._write_bytes(data)
+        self._next_seq_id = (self._next_seq_id + 1) % 256
+
     def _read_packet(self):
         buff = b''
         while True:
@@ -154,6 +177,14 @@ class Connection:
             self._force_close()
             raise Exception('fail to read data')
         return data
+
+    def _write_bytes(self, data):
+        self._sock.settimeout(self._write_timeout)
+        try:
+            self._sock.sendall(data)
+        except IOError as e:
+            self._force_close()
+            raise Exception('fail to write data')
 
     def _force_close(self):
         if self._sock:
