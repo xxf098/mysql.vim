@@ -1,5 +1,5 @@
 import socket, os, json, traceback, struct
-from mysql_lib import CAPABILITIES, CONNECT_WITH_DB, PLUGIN_AUTH, MAX_PACKET_LEN
+from mysql_lib import CAPABILITIES, CONNECT_WITH_DB, PLUGIN_AUTH, MAX_PACKET_LEN, MULTI_RESULTS
 
 
 def byte2int(b):
@@ -56,6 +56,8 @@ class Connection:
         self.encoding = config.encoding
         self._read_timeout = 120
         self._write_timeout = 120
+        self.client_flag = config.client_flag
+        self.charset_id = config.charset_id
         self.connect()
 
     def connect(self):
@@ -68,12 +70,13 @@ class Connection:
             self._rfile = sock.makefile('rb')
             self._next_seq_id = 0
 
-            self._get_server_information()
+            self._get_database_information()
+            self._login()
         except Exception as e:
             self._force_close()
             raise
 
-    def _get_server_information(self):
+    def _get_database_information(self):
         i = 0
         packet = self._read_packet()
         data = packet.get_all()
@@ -112,6 +115,13 @@ class Connection:
         if self.server_capabilities & PLUGIN_AUTH and len(data) >= i:
             server_end = data.find(b'\0', i)
             self._auth_plugin_name = (data[i:] if server_end < 0 else data[i:server_end]).decode('utf-8')
+
+    def _login(self):
+        self.client_flag |= MULTI_RESULTS
+        charset_id = self.charset_id
+        self.user = self.user.encode(self.encoding)
+        data_init = struct.pack('<iIB23s', self.client_flag, MAX_PACKET_LEN, charset_id, b'')
+        data = data_init + self.user + b'\0'
 
     def _read_packet(self):
         buff = b''
