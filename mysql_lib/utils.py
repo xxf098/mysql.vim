@@ -9,6 +9,9 @@ def byte2int(b):
 def int2byte(i):
     return struct.pack("!B", i)
 
+def pack_int24(n):
+    return struct.pack('<I', n)[:3]
+
 def lenenc_int(i):
     if (i < 0):
         raise ValueError("Encoding %d is less than 0 - no representation in LengthEncodedInteger" % i)
