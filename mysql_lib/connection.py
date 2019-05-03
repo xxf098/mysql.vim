@@ -1,4 +1,19 @@
-import socket, os, json, traceback
+import socket, os, json, traceback, struct
+
+DEFAULT_CHARSET = 'utf8mb4'
+MAX_PACKET_LEN = 2**24-1
+
+def byte2int(b):
+    if isinstance(b, int):
+        return b
+    else:
+        return struct.unpack("!B", b)[0]
+
+
+def int2byte(i):
+    return struct.pack("!B", i)
+
+
 class DBConfig:
     def __init__(self, host='localhost', user='root', password='', db=None, port=3306,
             connect_timeout=None, charset=''):
