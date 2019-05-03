@@ -1,4 +1,4 @@
-import pymysql.cursors
+from mysqlpy import connect, cursors
 import json, os, sys, traceback, re
 from functools import reduce
 from mysql_lib import Config
@@ -72,7 +72,7 @@ def print_show_table(result):
 
 def run_sql_query(sql, conf):
     config = conf.load()
-    connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
+    connection = connect(**config, cursorclass=cursors.DictCursor)
     try:
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -88,7 +88,7 @@ def run_sql_query(sql, conf):
 
 def get_all_tables(conf):
     config = conf.load()
-    connection = pymysql.connect(**config, cursorclass=pymysql.cursors.DictCursor)
+    connection = connect(**config, cursorclass=cursors.DictCursor)
     sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
     try:
         with connection.cursor() as cursor:

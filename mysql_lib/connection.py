@@ -1,7 +1,6 @@
 import socket, os, json, traceback, struct
+from mysql_lib import CAPABILITIES, CONNECT_WITH_DB, PLUGIN_AUTH, MAX_PACKET_LEN
 
-DEFAULT_CHARSET = 'utf8mb4'
-MAX_PACKET_LEN = 2**24-1
 
 def byte2int(b):
     if isinstance(b, int):
@@ -25,6 +24,12 @@ class DBConfig:
         self.connect_timeout = connect_timeout
         self.charset = 'utf8mb4'
         self.encoding = 'utf8'
+        self.charset_id = 224
+        client_flag = 0
+        client_flag |= CAPABILITIES
+        if self.db:
+            client_flag |= CONNECT_WITH_DB
+        self.client_flag = client_flag
 
     @staticmethod
     def load(path):
@@ -88,6 +93,25 @@ class Connection:
 
         self.server_capabilities = struct.unpack('<H', data[i:i+2])[0]
         i += 2
+
+        if len(data) >= i + 6:
+            lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i+6])
+            i += 6
+            self.server_language = lang
+            self.server_status = stat
+            self.server_capabilities |= cap_h << 16
+            salt_len = max(12, salt_len - 9)
+
+        i += 10
+
+        if len(data) >= i + salt_len:
+            self.salt += data[i:i+salt_len]
+            i += salt_len
+
+        i+=1
+        if self.server_capabilities & PLUGIN_AUTH and len(data) >= i:
+            server_end = data.find(b'\0', i)
+            self._auth_plugin_name = (data[i:] if server_end < 0 else data[i:server_end]).decode('utf-8')
 
     def _read_packet(self):
         buff = b''
