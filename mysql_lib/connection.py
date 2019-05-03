@@ -130,6 +130,19 @@ class Connection:
         self._sock = None
         self._rfile = None
 
+class Packet(object):
+    def __init__(self, data):
+        self._data = data
+
+    def get_all(self):
+        return self._data
+
+    def is_error_packet(self):
+        return self._data[0:1] == b'\xff'
+
+    def check_error(self):
+        if self.is_error_packet():
+            raise Exception('fail to check packet')
 
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
