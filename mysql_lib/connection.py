@@ -69,11 +69,45 @@ class Connection:
             raise
 
     def _get_server_information(self):
+        i = 0
         packet = self._read_packet()
+        data = packet.get_all()
+
+        self.protocol_version = byte2int(data[i:i+1])
+        i += 1
+
+        server_end = data.find(b'\0', i)
+        self.server_version = data[i:server_end].decode('latin1')
+        i = server_end + 1
+
+        self.server_thread_id = struct.unpack('<I', data[i:i+4])
+        i += 4
+
+        self.salt = data[i:i+8]
+        i += 9  # 8 + 1(filler)
+
+        self.server_capabilities = struct.unpack('<H', data[i:i+2])[0]
+        i += 2
 
     def _read_packet(self):
-        packet_header = self._read_bytes(4)
-        return packet_header
+        buff = b''
+        while True:
+            packet_header = self._read_bytes(4)
+            btrl, btrh, packet_number = struct.unpack('<HBB', packet_header)
+            bytes_to_read = btrl + (btrh << 16)
+            if packet_number != self._next_seq_id:
+                self._force_close()
+                raise Exception('fail to read packet')
+            self._next_seq_id = (self._next_seq_id + 1) % 256
+            recv_data = self._read_bytes(bytes_to_read)
+            buff += recv_data
+            if bytes_to_read == 0xffffff:
+                continue
+            if bytes_to_read < MAX_PACKET_LEN:
+                break
+        packet = Packet(buff)
+        packet.check_error()
+        return packet
 
     def _read_bytes(self, num_bytes):
         self._sock.settimeout(self._read_timeout)
