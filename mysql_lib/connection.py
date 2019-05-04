@@ -1,5 +1,5 @@
 import socket, os, json, traceback, struct
-from mysql_lib import CONST, _encryption, utils
+from mysql_lib import CONST, _encryption, utils, Cursor
 
 class DBConfig:
     def __init__(self, host='localhost', user='root', password='', db=None, port=3306,
@@ -64,6 +64,38 @@ class Connection:
         except Exception as e:
             self._force_close()
             raise
+
+    def query(self, sql):
+        sql = sql.encode(self.encoding, 'surrogateescape')
+        self._execute_query(CONST.COM_QUERY, sql)
+        self._affected_rows = self._read_query_result()
+        return self._affected_rows
+
+    def cursor(self):
+        return Cursor(self)
+
+    def _execute_query(self, command, sql):
+        if not self._sock:
+            raise Exception('sock not found')
+
+        if isinstance(sql, str):
+            sql = sql.encode(self.encoding)
+
+        packet_size = min(CONST.MAX_PACKET_LEN, len(sql) + 1)
+        prelude = struct.pack('<iB', packet_size, command)
+        packet = prelude + sql[:packet_size-1]
+        self._write_bytes(packet)
+        self._next_seq_id = 1
+
+        #TODO: big query handle
+        if packet_size < CONST.MAX_PACKET_LEN:
+            return
+
+    def _read_query_result(self):
+        result = QueryResult(self)
+        result.read()
+        self._result = result
+        return result.affected_rows
 
     def close(self):
         if self._closed:
@@ -213,9 +245,48 @@ class Connection:
 class Packet(object):
     def __init__(self, data):
         self._data = data
+        self._position = 0
 
     def get_all(self):
         return self._data
+
+    def read_length_encoded_integer(self):
+        c = self.read_uint8()
+        if c == CONST.NULL_COLUMN:
+            return None
+        if c < CONST.UNSIGNED_CHAR_COLUMN:
+            return c
+        elif c == CONST.UNSIGNED_SHORT_COLUMN:
+            return self.read_uint16()
+        elif c == CONST.UNSIGNED_INT24_COLUMN:
+            return self.read_uint24()
+        elif c == CONST.UNSIGNED_INT64_COLUMN:
+            return self.read_uint64()
+
+    def read_uint8(self):
+        result = self._data[self._position]
+        self._position += 1
+        return result
+
+    def read_uint16(self):
+        result = struct.unpack_from('<H', self._data, self._position)[0]
+        self._position += 2
+        return result
+
+    def read_uint24(self):
+        low, high = struct.unpack_from('<HB', self._data, self._position)
+        self._position += 3
+        return low + (high << 16)
+
+    def read_uint32(self):
+        result = struct.unpack_from('<I', self._data, self._position)[0]
+        self._position += 4
+        return result
+
+    def read_uint64(self):
+        result = struct.unpack_from('<Q', self._data, self._position)[0]
+        self._position += 8
+        return result
 
     def is_error_packet(self):
         return self._data[0:1] == b'\xff'
@@ -224,13 +295,39 @@ class Packet(object):
         if self.is_error_packet():
             raise Exception('fail to check packet')
 
+class QueryResult(object):
+
+    def __init__(self, connection):
+        self.connection = connection
+        self.affected_rows = None
+        self.description = None
+        self.rows = None
+        self.field_count = 0
+
+    def read(self):
+        try:
+            first_packet = self.connection._read_packet()
+            self._read_result_packet(first_packet)
+        finally:
+            self.connection = None
+
+    def _read_result_packet(self, first_packet):
+        self.field_count = first_packet.read_length_encoded_integer()
+        print(self.field_count)
+
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     parent_dir = os.path.abspath(os.path.join(dir_path, os.pardir))
     config_path = os.path.join(parent_dir, 'config.json')
     config = DBConfig.load(config_path)
-    connection = Connection(config)
-    print('this is the end')
+    try:
+        connection = Connection(config)
+        sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
+        connection.query(sql)
+    except Exception as e:
+        print(traceback.print_exc())
+    finally:
+        connection.close()
 
 if __name__ == '__main__':
     main()
