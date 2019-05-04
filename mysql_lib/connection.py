@@ -49,6 +49,7 @@ class Connection:
         self.connect()
 
     def connect(self):
+        self._closed = False
         try:
             address = (self.host, self.port)
             sock = socket.create_connection(address, self.connect_timeout)
@@ -63,6 +64,20 @@ class Connection:
         except Exception as e:
             self._force_close()
             raise
+
+    def close(self):
+        if self._closed:
+            raise Exception('Already closed')
+        self._closed = True
+        if self._sock is None:
+            return
+        send_data = struct.pack('<iB', 1, CONST.COM_QUIT)
+        try:
+            self._write_bytes(send_data)
+        except Exception:
+            pass
+        finally:
+            self._force_close()
 
     def _get_database_information(self):
         i = 0

@@ -32,3 +32,6 @@ DEPRECATE_EOF = 1 << 24
 
 DEFAULT_CHARSET = 'utf8mb4'
 MAX_PACKET_LEN = 2**24-1
+
+#command
+COM_QUIT = 0x01
