@@ -33,6 +33,152 @@ class DBConfig:
             print(traceback.print_exc())
             exit(1)
 
+#TODO: module
+class Packet(object):
+    def __init__(self, data):
+        self._data = data
+        self._position = 0
+
+    def get_all(self):
+        return self._data
+
+    def read(self, size):
+        result = self._data[self._position:(self._position+size)]
+        if len(result) != size:
+            error = ('Result length not requested length:\n'
+                     'Expected=%s.  Actual=%s.  Position: %s.  Data Length: %s'
+                     % (size, len(result), self._position, len(self._data)))
+            raise AssertionError(error)
+        self._position += size
+        return result
+
+    def read_length_encoded_integer(self):
+        c = self.read_uint8()
+        if c == CONST.NULL_COLUMN:
+            return None
+        if c < CONST.UNSIGNED_CHAR_COLUMN:
+            return c
+        elif c == CONST.UNSIGNED_SHORT_COLUMN:
+            return self.read_uint16()
+        elif c == CONST.UNSIGNED_INT24_COLUMN:
+            return self.read_uint24()
+        elif c == CONST.UNSIGNED_INT64_COLUMN:
+            return self.read_uint64()
+
+    def read_length_coded_string(self):
+        length = self.read_length_encoded_integer()
+        if length is None:
+            return None
+        return self.read(length)
+
+    def read_uint8(self):
+        result = self._data[self._position]
+        self._position += 1
+        return result
+
+    def read_uint16(self):
+        result = struct.unpack_from('<H', self._data, self._position)[0]
+        self._position += 2
+        return result
+
+    def read_uint24(self):
+        low, high = struct.unpack_from('<HB', self._data, self._position)
+        self._position += 3
+        return low + (high << 16)
+
+    def read_uint32(self):
+        result = struct.unpack_from('<I', self._data, self._position)[0]
+        self._position += 4
+        return result
+
+    def read_uint64(self):
+        result = struct.unpack_from('<Q', self._data, self._position)[0]
+        self._position += 8
+        return result
+
+    def is_eof_packet(self):
+        return self._data[0:1] == b'\xfe' and len(self._data) < 9
+
+    def is_error_packet(self):
+        return self._data[0:1] == b'\xff'
+
+    def check_error(self):
+        if self.is_error_packet():
+            raise Exception('fail to check packet')
+
+    def read_struct(self, fmt):
+        s = struct.Struct(fmt)
+        result = s.unpack_from(self._data, self._position)
+        self._position += s.size
+        return result
+
+class ColumnPacket(Packet):
+    def __init__(self, data, encoding='utf8'):
+        Packet.__init__(self, data)
+        self._parse_field_descriptor(encoding)
+
+    def _parse_field_descriptor(self, encoding):
+        self.catalog = self.read_length_coded_string()
+        self.db = self.read_length_coded_string()
+        self.table_name = self.read_length_coded_string().decode(encoding)
+        self.org_table = self.read_length_coded_string().decode(encoding)
+        self.name = self.read_length_coded_string().decode(encoding)
+        self.org_name = self.read_length_coded_string().decode(encoding)
+        self.charsetnr, self.length, self.type_code, self.flags, self.scale = (
+            self.read_struct('<xHIBHBxx'))
+
+    def description(self):
+        return (
+            self.name,
+            self.type_code,
+            None,
+            self.get_column_length(),
+            self.get_column_length(),
+            self.scale,
+            self.flags % 2 == 0)
+
+    def get_column_length(self):
+        if self.type_code == CONST.VAR_STRING:
+            mblen = CONST.MBLENGTH.get(self.charsetnr, 1)
+            return self.length // mblen
+        return self.length
+
+class QueryResult(object):
+    def __init__(self, connection):
+        self.connection = connection
+        self.affected_rows = None
+        self.description = None
+        self.rows = None
+        self.field_count = 0
+
+    def read(self):
+        try:
+            first_packet = self.connection._read_packet()
+            self._read_result_packet(first_packet)
+        finally:
+            self.connection = None
+
+    def _read_result_packet(self, first_packet):
+        self.field_count = first_packet.read_length_encoded_integer()
+        self._get_descriptions()
+        print(self.field_count)
+
+    def _get_descriptions(self):
+        self.fields = []
+        self.converters = []
+        use_unicode = self.connection.use_unicode
+        conn_encoding = self.connection.encoding
+        description = []
+        for i in range(self.field_count):
+            field = self.connection._read_packet(ColumnPacket)
+            self.fields.append(field)
+            description.append(field.description())
+            field_type = field.type_code
+
+        eof_packet = self.connection._read_packet()
+        assert eof_packet.is_eof_packet(), 'Protocol error, expecting EOF'
+        self.description = tuple(description)
+
 class Connection:
     def __init__(self, config=None):
         self.host = config.host
@@ -46,6 +192,7 @@ class Connection:
         self._write_timeout = 120
         self.client_flag = config.client_flag
         self.charset_id = config.charset_id
+        self.use_unicode = True
         self.connect()
 
     def connect(self):
@@ -65,7 +212,7 @@ class Connection:
             self._force_close()
             raise
 
-    def query(self, sql):
+    def run_sql(self, sql):
         sql = sql.encode(self.encoding, 'surrogateescape')
         self._execute_query(CONST.COM_QUERY, sql)
         self._affected_rows = self._read_query_result()
@@ -193,7 +340,7 @@ class Connection:
         self._write_bytes(data)
         self._next_seq_id = (self._next_seq_id + 1) % 256
 
-    def _read_packet(self):
+    def _read_packet(self, packet_class=Packet):
         buff = b''
         while True:
             packet_header = self._read_bytes(4)
@@ -209,7 +356,7 @@ class Connection:
                 continue
             if bytes_to_read < CONST.MAX_PACKET_LEN:
                 break
-        packet = Packet(buff)
+        packet = packet_class(buff)
         packet.check_error()
         return packet
 
@@ -242,78 +389,6 @@ class Connection:
         self._sock = None
         self._rfile = None
 
-class Packet(object):
-    def __init__(self, data):
-        self._data = data
-        self._position = 0
-
-    def get_all(self):
-        return self._data
-
-    def read_length_encoded_integer(self):
-        c = self.read_uint8()
-        if c == CONST.NULL_COLUMN:
-            return None
-        if c < CONST.UNSIGNED_CHAR_COLUMN:
-            return c
-        elif c == CONST.UNSIGNED_SHORT_COLUMN:
-            return self.read_uint16()
-        elif c == CONST.UNSIGNED_INT24_COLUMN:
-            return self.read_uint24()
-        elif c == CONST.UNSIGNED_INT64_COLUMN:
-            return self.read_uint64()
-
-    def read_uint8(self):
-        result = self._data[self._position]
-        self._position += 1
-        return result
-
-    def read_uint16(self):
-        result = struct.unpack_from('<H', self._data, self._position)[0]
-        self._position += 2
-        return result
-
-    def read_uint24(self):
-        low, high = struct.unpack_from('<HB', self._data, self._position)
-        self._position += 3
-        return low + (high << 16)
-
-    def read_uint32(self):
-        result = struct.unpack_from('<I', self._data, self._position)[0]
-        self._position += 4
-        return result
-
-    def read_uint64(self):
-        result = struct.unpack_from('<Q', self._data, self._position)[0]
-        self._position += 8
-        return result
-
-    def is_error_packet(self):
-        return self._data[0:1] == b'\xff'
-
-    def check_error(self):
-        if self.is_error_packet():
-            raise Exception('fail to check packet')
-
-class QueryResult(object):
-
-    def __init__(self, connection):
-        self.connection = connection
-        self.affected_rows = None
-        self.description = None
-        self.rows = None
-        self.field_count = 0
-
-    def read(self):
-        try:
-            first_packet = self.connection._read_packet()
-            self._read_result_packet(first_packet)
-        finally:
-            self.connection = None
-
-    def _read_result_packet(self, first_packet):
-        self.field_count = first_packet.read_length_encoded_integer()
-        print(self.field_count)
 
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -323,7 +398,7 @@ def main():
     try:
         connection = Connection(config)
         sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
-        connection.query(sql)
+        connection.run_sql(sql)
     except Exception as e:
         print(traceback.print_exc())
     finally:

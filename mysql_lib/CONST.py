@@ -43,3 +43,14 @@ UNSIGNED_CHAR_COLUMN = 251
 UNSIGNED_SHORT_COLUMN = 252
 UNSIGNED_INT24_COLUMN = 253
 UNSIGNED_INT64_COLUMN = 254
+
+#field type
+VAR_STRING = 253
+
+#charset
+MBLENGTH = {
+        8:1,
+        33:3,
+        88:2,
+        91:2
+        }
