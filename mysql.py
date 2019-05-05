@@ -1,7 +1,7 @@
 from mysqlpy import connect, cursors
 import json, os, sys, traceback, re
 from functools import reduce
-from mysql_lib import Config
+from mysql_lib import Config, Connection, DBConfig
 
 def get_str_length (s):
     if s is None:
@@ -100,6 +100,20 @@ def get_all_tables(conf):
     finally:
         connection.close()
 
+def get_all_tables_new():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(dir_path, 'config.json')
+    config = DBConfig.load(config_path)
+    connection = Connection(config)
+    sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
+    try:
+            result = connection.run_sql(sql)
+            [print(x[0]) for x in result.rows]
+    except Exception as e:
+        print(traceback.print_exc())
+    finally:
+        connection.close()
+
 def main():
     # parse args
     if len(sys.argv) < 2:
@@ -112,7 +126,7 @@ def main():
 
     arg = sys.argv[1]
     if arg == '--table':
-        get_all_tables(conf)
+        get_all_tables_new()
     else:
         run_sql_query(arg, conf)
 
