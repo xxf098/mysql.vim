@@ -19,7 +19,7 @@ class DBConfig:
         if self.db:
             client_flag |= CONST.CONNECT_WITH_DB
         self.client_flag = client_flag
-    
+
     def  __getitem__(self, name):
         return super().__getattribute__(name)
 
@@ -56,7 +56,7 @@ class QueryResult(object):
         self.field_count = first_packet.read_length_encoded_integer()
         self._read_columndata_packet()
         self._read_rowdata_packet()
-        print(self.field_count)
+        # print(self.field_count)
 
     def _read_columndata_packet(self):
         self.columns = []
@@ -109,7 +109,7 @@ class Connection:
     def __init__(self, config=None):
         self.host = config.host
         self.user = config.user
-        self.password = config.password
+        self.password = utils.encode_str(config.password, 'latin1')
         self.db = config.db
         self.port = config.port
         self.connect_timeout = config.connect_timeout

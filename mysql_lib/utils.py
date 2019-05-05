@@ -25,3 +25,6 @@ def lenenc_int(i):
         return b'\xfe' + struct.pack('<Q', i)
     else:
         raise ValueError("Encoding %x is larger than %x - no representation in LengthEncodedInteger" % (i, (1 << 64)))
+
+def encode_str(data, encoding):
+    return data.encode(encoding) if isinstance(data, str) else data
