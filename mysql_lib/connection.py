@@ -57,6 +57,7 @@ class QueryResult(object):
 
     def _read_columndata_packet(self):
         self.columns = []
+        column_names = []
         self.converters = []
         use_unicode = self.connection.use_unicode
         encoding = self.connection.encoding
@@ -64,6 +65,7 @@ class QueryResult(object):
         for i in range(self.field_count):
             field = self.connection._read_packet(ColumnPacket)
             self.columns.append(field)
+            column_names.append(field.name)
             description.append(field.description())
             field_type = field.type_code
             self.converters.append((encoding, None))
@@ -71,6 +73,7 @@ class QueryResult(object):
         eof_packet = self.connection._read_packet()
         assert eof_packet.is_eof_packet(), 'Protocol error, expecting EOF'
         self.description = tuple(description)
+        self.column_names = tuple(column_names)
 
     def _read_rowdata_packet(self):
         rows = []
@@ -136,7 +139,7 @@ class Connection:
         sql = sql.encode(self.encoding, 'surrogateescape')
         self._execute_query(CONST.COM_QUERY, sql)
         self._affected_rows = self._read_query_result()
-        return self._affected_rows
+        return self._result
 
     def cursor(self):
         return Cursor(self)
@@ -317,8 +320,10 @@ def main():
     config = DBConfig.load(config_path)
     try:
         connection = Connection(config)
-        sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
-        connection.run_sql(sql)
+        # sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
+        sql = 'select * from organizations;'
+        result = connection.run_sql(sql)
+        print(result.column_names)
     except Exception as e:
         print(traceback.print_exc())
     finally:
