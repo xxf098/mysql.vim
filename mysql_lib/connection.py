@@ -19,6 +19,9 @@ class DBConfig:
         if self.db:
             client_flag |= CONST.CONNECT_WITH_DB
         self.client_flag = client_flag
+    
+    def  __getitem__(self, name):
+        return super().__getattribute__(name)
 
     @staticmethod
     def load(path):
