@@ -51,11 +51,11 @@ class QueryResult(object):
 
     def _read_result_packet(self, first_packet):
         self.field_count = first_packet.read_length_encoded_integer()
-        self._get_descriptions()
+        self._read_columndata_packet()
         self._read_rowdata_packet()
         print(self.field_count)
 
-    def _get_descriptions(self):
+    def _read_columndata_packet(self):
         self.columns = []
         self.converters = []
         use_unicode = self.connection.use_unicode
