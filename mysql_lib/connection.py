@@ -52,23 +52,52 @@ class QueryResult(object):
     def _read_result_packet(self, first_packet):
         self.field_count = first_packet.read_length_encoded_integer()
         self._get_descriptions()
+        self._read_rowdata_packet()
         print(self.field_count)
 
     def _get_descriptions(self):
-        self.fields = []
+        self.columns = []
         self.converters = []
         use_unicode = self.connection.use_unicode
-        conn_encoding = self.connection.encoding
+        encoding = self.connection.encoding
         description = []
         for i in range(self.field_count):
             field = self.connection._read_packet(ColumnPacket)
-            self.fields.append(field)
+            self.columns.append(field)
             description.append(field.description())
             field_type = field.type_code
+            self.converters.append((encoding, None))
 
         eof_packet = self.connection._read_packet()
         assert eof_packet.is_eof_packet(), 'Protocol error, expecting EOF'
         self.description = tuple(description)
+
+    def _read_rowdata_packet(self):
+        rows = []
+        while True:
+            packet = self.connection._read_packet()
+            if packet.is_eof_packet():
+                self.connection = None  # release reference to kill cyclic reference.
+                break
+            rows.append(self._read_row_from_packet(packet))
+
+        self.affected_rows = len(rows)
+        self.rows = tuple(rows)
+
+    def _read_row_from_packet(self, packet):
+        row = []
+        for encoding, converter in self.converters:
+            try:
+                data = packet.read_length_coded_string()
+            except IndexError:
+                break
+            if data is not None:
+                if encoding is not None:
+                    data = data.decode(encoding)
+                if converter is not None:
+                    data = converter(data)
+            row.append(data)
+        return tuple(row)
 
 class Connection:
     def __init__(self, config=None):
