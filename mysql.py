@@ -100,6 +100,22 @@ def get_all_tables(conf):
     finally:
         connection.close()
 
+#TODO: refactor
+def run_sql_query_new(sql):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(dir_path, 'config.json')
+    config = DBConfig.load(config_path)
+    connection = Connection(config)
+    try:
+            result = connection.run_sql(sql)
+            if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
+                # [print(row[1]) for row in result.rows]
+                [print(x) for row in result.rows for x in row]
+    except Exception as e:
+        print(traceback.print_exc())
+    finally:
+        connection.close()
+
 def get_all_tables_new():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     config_path = os.path.join(dir_path, 'config.json')
@@ -127,6 +143,8 @@ def main():
     arg = sys.argv[1]
     if arg == '--table':
         get_all_tables_new()
+    elif (re.match(r'^SHOW CREATE TABLE', arg, re.IGNORECASE)):
+        run_sql_query_new(arg)
     else:
         run_sql_query(arg, conf)
 
