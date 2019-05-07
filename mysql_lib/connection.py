@@ -195,17 +195,11 @@ class Connection:
         self.protocol_version = utils.byte2int(data[i:i+1])
         i += 1
 
-        (self.server_version, server_end) = utils.read_str(data, end=b'\0', decode='latin1')
+        self.server_version, server_end = utils.read_str(data, end=b'\0', decode='latin1')
         i = server_end + 1
 
-        self.connection_id = struct.unpack('<I', data[i:i+4])
-        i += 4
-
-        self.salt = data[i:i+8]
-        i += 9  # 8 + 1(filler)
-
-        self.server_capabilities = struct.unpack('<H', data[i:i+2])[0]
-        i += 2
+        self.connection_id, self.salt, self.server_capabilities = struct.unpack('<I8sxH', data[i:i+15])
+        i += 15
 
         if len(data) >= i + 6:
             lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i+6])
