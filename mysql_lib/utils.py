@@ -28,3 +28,11 @@ def lenenc_int(i):
 
 def encode_str(data, encoding):
     return data.encode(encoding) if isinstance(data, str) else data
+
+def read_str(buf, end=None, decode=None):
+    idx = buf.index(end) if end  else len(buf) - 1
+    data = buf[0:idx]
+    if decode:
+        data = data.decode(decode)
+    return (data, idx)
+

@@ -120,6 +120,7 @@ class Connection:
         self.client_flag = config.client_flag
         self.charset_id = config.charset_id
         self.use_unicode = True
+        self._sock = None
         self.connect()
 
     def connect(self):
@@ -194,8 +195,7 @@ class Connection:
         self.protocol_version = utils.byte2int(data[i:i+1])
         i += 1
 
-        server_end = data.find(b'\0', i)
-        self.server_version = data[i:server_end].decode('latin1')
+        (self.server_version, server_end) = utils.read_str(data, end=b'\0', decode='latin1')
         i = server_end + 1
 
         self.connection_id = struct.unpack('<I', data[i:i+4])
@@ -223,8 +223,7 @@ class Connection:
 
         i+=1
         if self.server_capabilities & CONST.PLUGIN_AUTH and len(data) >= i:
-            server_end = data.find(b'\0', i)
-            self._auth_plugin_name = (data[i:] if server_end < 0 else data[i:server_end]).decode('utf-8')
+            self._auth_plugin_name, _ = utils.read_str(data[i:], end=b'\0', decode='utf-8')
 
     # https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41
     def _login(self):
@@ -309,11 +308,12 @@ class Connection:
             raise Exception('fail to write data')
 
     def _force_close(self):
-        if self._sock:
-            try:
-                self._sock.close()
-            except:
-                pass
+        if not self._sock:
+            return
+        try:
+            self._sock.close()
+        except:
+            pass
         self._sock = None
         self._rfile = None
 
