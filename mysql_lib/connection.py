@@ -107,13 +107,13 @@ class QueryResult(object):
 
 class Connection:
     def __init__(self, config=None):
+        self.encoding = config.encoding
         self.host = config.host
-        self.user = config.user
+        self.user = utils.encode_str(config.user, self.encoding)
         self.password = utils.encode_str(config.password, 'latin1')
         self.db = config.db
         self.port = config.port
         self.connect_timeout = config.connect_timeout
-        self.encoding = config.encoding
         self._read_timeout = 120
         self._write_timeout = 120
         self.client_flag = config.client_flag
@@ -227,7 +227,6 @@ class Connection:
     def _login(self):
         self.client_flag |= CONST.MULTI_RESULTS
         charset_id = self.charset_id
-        self.user = self.user.encode(self.encoding)
         data_init = struct.pack('<iIB23s', self.client_flag, CONST.MAX_PACKET_LEN, charset_id, b'')
         data = data_init + self.user + b'\0'
 
@@ -324,9 +323,9 @@ def main():
     try:
         connection = Connection(config)
         # sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
-        sql = 'select * from organizations;'
+        sql = 'show create table organizations;'
         result = connection.run_sql(sql)
-        print(result.column_names)
+        [print(x) for row in result.rows for x in row]
     except Exception as e:
         print(traceback.print_exc())
     finally:
