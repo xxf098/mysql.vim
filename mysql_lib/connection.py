@@ -186,7 +186,7 @@ class Connection:
         finally:
             self._force_close()
 
-    #https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::Handshake
+    # https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::Handshake
     def _init_handshake(self):
         i = 0
         packet = self._read_packet()
@@ -198,22 +198,21 @@ class Connection:
         self.server_version, server_end = utils.read_str(data, end=b'\0', decode='latin1')
         i = server_end + 1
 
-        self.connection_id, self.salt, self.server_capabilities = struct.unpack('<I8sxH', data[i:i+15])
-        i += 15
+        self.connection_id,\
+        self.salt,\
+        self.server_capabilities,\
+        self.server_language,\
+        self.server_status,\
+        cap_h,\
+        auth_len\
+        = struct.unpack('<I8sxHBHHB', data[i:i+21])
+        self.server_capabilities |= cap_h << 16
+        auth_len = max(12, auth_len - 9)
+        i += 31
 
-        if len(data) >= i + 6:
-            lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i+6])
-            i += 6
-            self.server_language = lang
-            self.server_status = stat
-            self.server_capabilities |= cap_h << 16
-            salt_len = max(12, salt_len - 9)
-
-        i += 10
-
-        if len(data) >= i + salt_len:
-            self.salt += data[i:i+salt_len]
-            i += salt_len
+        if len(data) >= i + auth_len:
+            self.salt += data[i:i+auth_len]
+            i += auth_len
 
         i+=1
         if self.server_capabilities & CONST.PLUGIN_AUTH and len(data) >= i:
