@@ -45,6 +45,7 @@ class QueryResult(object):
         self.rows = None
         self.field_count = 0
 
+    # https://dev.mysql.com/doc/internals/en/com-query-response.html
     def read(self):
         try:
             first_packet = self.connection._read_packet()
@@ -54,11 +55,11 @@ class QueryResult(object):
 
     def _read_result_packet(self, first_packet):
         self.field_count = first_packet.read_length_encoded_integer()
-        self._read_columndata_packet()
-        self._read_rowdata_packet()
+        self._read_column_definition_packet()
+        self._read_resultrow_packet()
         # print(self.field_count)
 
-    def _read_columndata_packet(self):
+    def _read_column_definition_packet(self):
         self.columns = []
         column_names = []
         self.converters = []
@@ -78,7 +79,7 @@ class QueryResult(object):
         self.description = tuple(description)
         self.column_names = tuple(column_names)
 
-    def _read_rowdata_packet(self):
+    def _read_resultrow_packet(self):
         rows = []
         while True:
             packet = self.connection._read_packet()
@@ -132,7 +133,7 @@ class Connection:
             self._rfile = sock.makefile('rb')
             self._next_seq_id = 0
 
-            self._get_database_information()
+            self._init_handshake()
             self._login()
         except Exception as e:
             self._force_close()
@@ -184,7 +185,8 @@ class Connection:
         finally:
             self._force_close()
 
-    def _get_database_information(self):
+    #https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::Handshake
+    def _init_handshake(self):
         i = 0
         packet = self._read_packet()
         data = packet.get_all()
@@ -196,7 +198,7 @@ class Connection:
         self.server_version = data[i:server_end].decode('latin1')
         i = server_end + 1
 
-        self.server_thread_id = struct.unpack('<I', data[i:i+4])
+        self.connection_id = struct.unpack('<I', data[i:i+4])
         i += 4
 
         self.salt = data[i:i+8]
@@ -224,6 +226,7 @@ class Connection:
             server_end = data.find(b'\0', i)
             self._auth_plugin_name = (data[i:] if server_end < 0 else data[i:server_end]).decode('utf-8')
 
+    # https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41
     def _login(self):
         self.client_flag |= CONST.MULTI_RESULTS
         charset_id = self.charset_id
