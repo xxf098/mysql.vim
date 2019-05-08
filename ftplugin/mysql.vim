@@ -155,15 +155,19 @@ function! s:DisplayTableInfoRightWindow(result)
 endfunction
 
 "TODO: show first 100 rows
-function! s:ShowAllTableNames()
+function! s:ShowAllTableNames(...)
+  let arg1 = get(a:, 1, '')
   let cmd = 'python3 ' . s:MySQLPyPath . ' --table'
   let result = system(cmd)
   let options = { 'display_table_name': 1 }
   let b:ncm2_mysql_tablenames = split(result, '\n')
   :call s:DisplaySQLQueryResult(result, options)
+  if arg1 == 'w'
+    call writefile(split(result, '\n'), 'table_names.data')
+  endif
 endfunction
 
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(0)<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
-command! Table :call s:ShowAllTableNames()
+command! -nargs=? Table :call s:ShowAllTableNames(<f-args>)
