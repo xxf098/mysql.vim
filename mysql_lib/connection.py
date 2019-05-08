@@ -222,14 +222,27 @@ class Connection:
     def _login(self):
         self.client_flag |= CONST.MULTI_RESULTS
         charset_id = self.charset_id
-        data_init = struct.pack('<iIB23s', self.client_flag, CONST.MAX_PACKET_LEN, charset_id, b'')
-        data = data_init + self.user + b'\0'
+        data = struct.pack('<iIB23s{}sx'.format(len(self.user)), self.client_flag, CONST.MAX_PACKET_LEN, charset_id, b'', self.user)
 
+        data += self._get_encrypt_pass()
+
+        if self.db and self.server_capabilities & CONST.CONNECT_WITH_DB:
+            self.db = self.db.encode(self.encoding)
+            data += self.db + b'\0'
+
+        if self.server_capabilities & CONST.PLUGIN_AUTH:
+            data += (self._auth_plugin_name.encode() or b'') + b'\0'
+
+        connect_attrs = b''
+        data += struct.pack('B', len(connect_attrs)) + connect_attrs
+
+        self.write_packet(data)
+        auth_packet = self._read_packet()
+
+    def _get_encrypt_pass(self):
         encrypted_pass = b''
-        plugin_name = None
-
+        data = b''
         if self._auth_plugin_name == '':
-            plugin_name = b''
             encrypted_pass = _encryption.encrypt_password(self.password, self.salt)
         elif self._auth_plugin_name == 'mysql_native_password':
             plugin_name = b'mysql_native_password'
@@ -241,19 +254,7 @@ class Connection:
             data += struct.pack('B', len(encrypted_pass)) + encrypted_pass
         else:
             data += encrypted_pass + b'\0'
-
-        if self.db and self.server_capabilities & CONST.CONNECT_WITH_DB:
-            self.db = self.db.encode(self.encoding)
-            data += self.db + b'\0'
-
-        if self.server_capabilities & CONST.PLUGIN_AUTH:
-            data += (plugin_name or b'') + b'\0'
-
-        connect_attrs = b''
-        data += struct.pack('B', len(connect_attrs)) + connect_attrs
-
-        self.write_packet(data)
-        auth_packet = self._read_packet()
+        return data
 
     def write_packet(self, payload):
         data = utils.pack_int24(len(payload)) + utils.int2byte(self._next_seq_id) + payload
@@ -325,7 +326,9 @@ def main():
     except Exception as e:
         print(traceback.print_exc())
     finally:
-        connection.close()
-
+        if connection is not None:
+            connection.close()
+            
+#TODO: python & vim ariac2 tool TBB       
 if __name__ == '__main__':
     main()
