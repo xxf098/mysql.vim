@@ -154,11 +154,12 @@ function! s:DisplayTableInfoRightWindow(result)
   setlocal nomodifiable
 endfunction
 
-"TODO: display table schema
+"TODO: show first 100 rows
 function! s:ShowAllTableNames()
   let cmd = 'python3 ' . s:MySQLPyPath . ' --table'
   let result = system(cmd)
   let options = { 'display_table_name': 1 }
+  let b:ncm2_mysql_tablenames = split(result, '\n')
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
