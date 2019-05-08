@@ -1,18 +1,16 @@
-import hashlib
-from functools import partial
-sha1_new = partial(hashlib.new, 'sha1')
+from hashlib import sha1
+import struct
 
 def encrypt_password(password, message):
     if not password:
         return b''
 
-    stage1 = sha1_new(password).digest()
-    stage2 = sha1_new(stage1).digest()
-    s = sha1_new()
-    s.update(message[:20])
-    s.update(stage2)
-    result = s.digest()
-    return _get_bytes(result, stage1)
+    hash1 = sha1(password).digest()
+    hash2 = sha1(hash1).digest()
+    hash3 = sha1(message + hash2).digest()
+    xored = [h1 ^ h3 for (h1, h3) in zip(hash1, hash3)]
+    hash4 = struct.pack('20B', *xored)
+    return hash4
 
 def _get_bytes(message1, message2):
     result = bytearray(message1)
