@@ -6,7 +6,12 @@ function! ncm2_mysql#on_complete(ctx)
   let count = len(words)
   if count >= 2
     if words[count-1] =~? 'from' || words[count-2] =~? 'from'
+      "TODO: support multiple *.mysql files
       let l:matches = get(b:, 'ncm2_mysql_tablenames', [])
+      if len(l:matches) == 0 && filereadable('table_names.data')
+        let l:matches = readfile('table_names.data')
+        let b:ncm2_mysql_tablenames = l:matches
+      endif
       map(l:matches, "{'word': v:val}")
     endif
   endif
