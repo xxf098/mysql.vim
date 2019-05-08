@@ -163,7 +163,7 @@ function! s:ShowAllTableNames(...)
   let b:ncm2_mysql_tablenames = split(result, '\n')
   :call s:DisplaySQLQueryResult(result, options)
   if arg1 == 'w'
-    call writefile(split(result, '\n'), 'table_names.data')
+    call writefile(split(result, '\n'), '.table_names.data')
   endif
 endfunction
 
