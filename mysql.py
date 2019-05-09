@@ -106,54 +106,57 @@ def load_config():
     config = DBConfig.load(config_path)
     return config
 
-def run_sql_query_new(sql, config=None, print_table=True):
-    config = load_config() if config is None else config
-    connection = Connection(config)
-    try:
-            result = connection.run_sql(sql)
-            if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
-                [print(row[1]) for row in result.rows if print_table]
-                return result.rows[0][1]
-            return result
-    except Exception as e:
-        print(traceback.print_exc())
-    finally:
-        connection.close()
 
-#TODO: class
-def get_all_tables_new(config=None, print_table=True):
-    config = load_config() if config is None else config
-    connection = Connection(config)
-    sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
-    try:
-            result = connection.run_sql(sql)
-            [print(x[0]) for x in result.rows if print_table]
-            return [x[0] for x in result.rows]
-    except Exception as e:
-        print(traceback.print_exc())
-    finally:
-        connection.close()
+#TODO: with
+class MySQLExecutor(object):
 
-def synchronize_database_columns(data_path):
-    config = load_config()
-    tables = get_all_tables_new(config, print_table=False)
-    pool = ThreadPool(processes=12)
-    columns = pool.starmap(get_table_column, [(t, config) for t in tables], chunksize=12)
-    with open('columns.csv', 'w+') as f:
-        for column in columns:
-            f.write('{}\r\n'.format(','.join(column)))
-    # print(tables)
+    def __init__(self, config=None):
+        self.config = config if config is not None else load_config()
 
-def get_table_column(table, config):
-    result = [table, '0']
-    try:
-        sql = 'describe {}'.format(table)
-        table_describe = run_sql_query_new(sql, config, print_table=False)
-        columns = [row[0] for row in table_describe.rows]
-        result =  [table, str(len(columns))] + columns
-    except:
-        pass
-    return result
+    def execute_query(self, sql, print_table=True):
+        connection = Connection(self.config)
+        try:
+                result = connection.run_sql(sql)
+                if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
+                    [print(row[1]) for row in result.rows if print_table]
+                    return result.rows[0][1]
+                return result
+        except Exception as e:
+            print(traceback.print_exc())
+        finally:
+            connection.close()
+
+    def get_all_tables(self, print_table=True):
+        connection = Connection(self.config)
+        sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(self.config['db'])
+        try:
+                result = connection.run_sql(sql)
+                [print(x[0]) for x in result.rows if print_table]
+                return [x[0] for x in result.rows]
+        except Exception as e:
+            print(traceback.print_exc())
+        finally:
+            connection.close()
+
+    def synchronize_database_columns(self, data_path):
+        tables = self.get_all_tables(print_table=False)
+        pool = ThreadPool(processes=12)
+        columns = pool.map(self.get_table_column, tables, chunksize=12)
+        with open('columns.csv', 'w+') as f:
+            for column in columns:
+                f.write('{}\r\n'.format(','.join(column)))
+        # print(tables)
+
+    def get_table_column(self, table):
+        result = [table, '0']
+        try:
+            sql = 'describe {}'.format(table)
+            table_describe = self.execute_query(sql, print_table=False)
+            columns = [row[0] for row in table_describe.rows]
+            result =  [table, str(len(columns))] + columns
+        except:
+            pass
+        return result
 
 def main():
     # parse args
@@ -165,15 +168,17 @@ def main():
     config_path = os.path.join(dir_path, 'config.json')
     config = Config(config_path).load()
 
+    executor = MySQLExecutor()
+
     arg1 = sys.argv[1]
     if arg1 == '--table':
-        get_all_tables_new()
+        executor.get_all_tables()
     elif arg1 == '--sync':
         # data_path = os.path.join(dir_path, '.data', '{}_columns'.format(config['db']))
         data_path = sys.argv[2] if len(sys.argv) > 2 else None
-        synchronize_database_columns(data_path)
+        executor.synchronize_database_columns(data_path)
     elif (re.match(r'^SHOW CREATE TABLE', arg1, re.IGNORECASE)):
-        run_sql_query_new(arg1)
+        executor.execute_query(arg1)
     else:
         run_sql_query(arg1, config)
 
