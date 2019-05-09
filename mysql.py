@@ -146,7 +146,7 @@ class MySQLExecutor(object):
     def get_table_column(self, table):
         result = [table, '0']
         try:
-            sql = 'describe {}'.format(table)
+            sql = 'describe `{}`'.format(table)
             table_describe = self.execute_query(sql, print_table=False)
             columns = [row[0] for row in table_describe.rows]
             result =  [table, str(len(columns))] + columns
