@@ -2,6 +2,7 @@ from mysqlpy import connect, cursors
 import json, os, sys, traceback, re
 from functools import reduce
 from mysql_lib import Config, Connection, DBConfig
+from multiprocessing.pool import ThreadPool
 
 def get_str_length (s):
     if s is None:
@@ -105,26 +106,29 @@ def load_config():
     config = DBConfig.load(config_path)
     return config
 
-def run_sql_query_new(sql, config=None):
+def run_sql_query_new(sql, config=None, print_table=True):
     config = load_config() if config is None else config
     connection = Connection(config)
     try:
             result = connection.run_sql(sql)
             if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
-                [print(row[1]) for row in result.rows]
+                [print(row[1]) for row in result.rows if print_table]
+                return result.rows[0][1]
+            return result
     except Exception as e:
         print(traceback.print_exc())
     finally:
         connection.close()
 
-def get_all_tables_new(config=None):
+#TODO: class
+def get_all_tables_new(config=None, print_table=True):
     config = load_config() if config is None else config
     connection = Connection(config)
     sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
     try:
             result = connection.run_sql(sql)
-            [print(x[0]) for x in result.rows]
-            return result
+            [print(x[0]) for x in result.rows if print_table]
+            return [x[0] for x in result.rows]
     except Exception as e:
         print(traceback.print_exc())
     finally:
@@ -132,7 +136,26 @@ def get_all_tables_new(config=None):
 
 def synchronize_database_columns(data_path):
     config = load_config()
-    tables = get_all_tables_new(config)
+    tables = get_all_tables_new(config, print_table=False)
+    pool = ThreadPool(processes=12)
+    columns = pool.starmap(get_table_column, [(t, config) for t in tables], chunksize=12)
+    # TODO: with
+    f = open('columns.csv', 'w+')
+    for column in columns:
+        f.write('{}\r\n'.format(','.join(column)))
+    f.close()
+    # print(tables)
+
+def get_table_column(table, config):
+    result = [table, '0']
+    try:
+        sql = 'describe {}'.format(table)
+        table_describe = run_sql_query_new(sql, config, print_table=False)
+        columns = [row[0] for row in table_describe.rows]
+        result =  [table, str(len(columns))] + columns
+    except:
+        pass
+    return result
 
 def main():
     # parse args
