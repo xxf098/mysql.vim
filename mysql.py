@@ -114,29 +114,25 @@ class MySQLExecutor(object):
         self.config = config if config is not None else load_config()
 
     def execute_query(self, sql, print_table=True):
-        connection = Connection(self.config)
-        try:
+        with Connection(self.config) as connection:
+            try:
                 result = connection.run_sql(sql)
                 if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
                     [print(row[1]) for row in result.rows if print_table]
                     return result.rows[0][1]
                 return result
-        except Exception as e:
-            print(traceback.print_exc())
-        finally:
-            connection.close()
+            except Exception as e:
+                print(traceback.print_exc())
 
     def get_all_tables(self, print_table=True):
-        connection = Connection(self.config)
         sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(self.config['db'])
-        try:
+        with Connection(self.config) as connection:
+            try:
                 result = connection.run_sql(sql)
                 [print(x[0]) for x in result.rows if print_table]
                 return [x[0] for x in result.rows]
-        except Exception as e:
-            print(traceback.print_exc())
-        finally:
-            connection.close()
+            except Exception as e:
+                print(traceback.print_exc())
 
     def synchronize_database_columns(self, data_path):
         tables = self.get_all_tables(print_table=False)
