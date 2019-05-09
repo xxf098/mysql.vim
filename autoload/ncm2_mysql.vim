@@ -22,8 +22,13 @@ function! ncm2_mysql#init() abort
  call ncm2#register_source({
       \'name': 'mysql',
       \ 'mark': 'mysql',
-      \'scope': ['mysql'],
+      \ 'scope': ['mysql'],
       \ 'priority': 5,
       \ 'on_complete': 'ncm2_mysql#on_complete',
       \ })
 endfunction
+
+"TODO: complete column name
+"1. search forward line by line untile 'from' 2. get next word as table name
+"Or begin with tablename.column name
+"TODO: complete join

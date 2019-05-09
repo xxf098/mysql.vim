@@ -110,7 +110,7 @@ endfunction
 
 function! g:DescribeTableUnderCursor(displayRightWindow)
   let table_name = expand("<cword>")
-  let sql = 'SHOW CREATE TABLE ' . table_name . ';'
+  let sql = "SHOW CREATE TABLE \\`" . table_name . "\\`;"
   let cmd = 'python3 ' . s:MySQLPyPath . ' "' . sql . '"'
   let result = system(cmd)
   let options = {'file_type': 'mysql'}
@@ -167,7 +167,14 @@ function! s:ShowAllTableNames(...)
   endif
 endfunction
 
+function! s:SynchronizeDatabase()
+  let current_directory = expand('%:p:h')
+  let cmd = 'python3 ' . s:MySQLPyPath . ' --sync ' . current_directory
+  let result = system(cmd)
+endfunction
+
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(0)<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
 command! -nargs=? Table :call s:ShowAllTableNames(<f-args>)
+command! DBSync :call s:SynchronizeDatabase()
