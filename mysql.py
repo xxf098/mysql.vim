@@ -117,7 +117,7 @@ class MySQLExecutor(object):
         with Connection(self.config) as connection:
             try:
                 result = connection.run_sql(sql)
-                if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
+                if (re.match(r"^'?SHOW CREATE TABLE", sql, re.IGNORECASE)):
                     [print(row[1]) for row in result.rows if print_table]
                     return result.rows[0][1]
                 return result
@@ -173,7 +173,7 @@ def main():
         # data_path = os.path.join(dir_path, '.data', '{}_columns'.format(config['db']))
         data_path = sys.argv[2] if len(sys.argv) > 2 else None
         executor.synchronize_database_columns(data_path)
-    elif (re.match(r'^SHOW CREATE TABLE', arg1, re.IGNORECASE)):
+    elif (re.match(r"^'?SHOW CREATE TABLE", arg1, re.IGNORECASE)):
         executor.execute_query(arg1)
     else:
         run_sql_query(arg1, config)
