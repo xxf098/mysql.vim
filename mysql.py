@@ -3,6 +3,7 @@ import json, os, sys, traceback, re
 from functools import reduce
 from mysql_lib import Config, Connection, DBConfig
 from multiprocessing.pool import ThreadPool
+import threading
 
 def get_str_length (s):
     if s is None:
@@ -155,6 +156,9 @@ class MySQLExecutor(object):
             pass
         return result
 
+    def init_environment(self):
+        print('1,{},{}'.format(self.config.db, self.config.port))
+
 def main():
     # parse args
     if len(sys.argv) < 2:
@@ -170,6 +174,8 @@ def main():
     arg1 = sys.argv[1]
     if arg1 == '--table':
         executor.get_all_tables()
+    elif arg1 == '--init':
+        executor.init_environment()
     elif arg1 == '--sync':
         # data_path = os.path.join(dir_path, '.data', '{}_columns'.format(config['db']))
         executor.synchronize_database_columns()
