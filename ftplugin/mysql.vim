@@ -177,9 +177,20 @@ function! s:InitEnvironment()
   let cmd = 'python3 ' . s:MySQLPyPath . ' --init'
   let result = system(cmd)
   let array = split(substitute(result, '\n', '', 'g'), ',')
-  if get(array, 0, 0) == '1'
-    let b:mysql_current_db = get(array, 1, '')
-    let b:mysql_current_port = get(array, 2, '')
+  if get(array, 0, 0) != '1'
+    return
+  endif
+  let b:mysql_current_db = get(array, 1, '')
+  let b:mysql_current_port = get(array, 2, '')
+  let filename = b:mysql_current_db . '_' . b:mysql_current_port . '_columns.csv'
+  if filereadable(filename)
+    let lines = readfile(filename)
+    let table_names = []
+    for line in lines
+      let table_name = get(split(line, ','), 0, '')
+      let table_names = add(table_names, table_name)
+    endfor
+    let b:ncm2_mysql_tablenames = table_names
   endif
 endfunction
 
