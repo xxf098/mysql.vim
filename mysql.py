@@ -134,11 +134,12 @@ class MySQLExecutor(object):
             except Exception as e:
                 print(traceback.print_exc())
 
-    def synchronize_database_columns(self, data_path):
+    def synchronize_database_columns(self):
+        filename = '{}_{}_columns.csv'.format(self.config.db, self.config.port)
         tables = self.get_all_tables(print_table=False)
         pool = ThreadPool(processes=12)
         columns = pool.map(self.get_table_column, tables, chunksize=12)
-        with open('columns.csv', 'w+') as f:
+        with open(filename, 'w+') as f:
             for column in columns:
                 f.write('{}\r\n'.format(','.join(column)))
         # print(tables)
@@ -171,8 +172,7 @@ def main():
         executor.get_all_tables()
     elif arg1 == '--sync':
         # data_path = os.path.join(dir_path, '.data', '{}_columns'.format(config['db']))
-        data_path = sys.argv[2] if len(sys.argv) > 2 else None
-        executor.synchronize_database_columns(data_path)
+        executor.synchronize_database_columns()
     elif (re.match(r"^'?SHOW CREATE TABLE", arg1, re.IGNORECASE)):
         executor.execute_query(arg1)
     else:

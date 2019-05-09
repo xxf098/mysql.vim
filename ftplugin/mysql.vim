@@ -169,7 +169,7 @@ endfunction
 
 function! s:SynchronizeDatabase()
   let current_directory = expand('%:p:h')
-  let cmd = 'python3 ' . s:MySQLPyPath . ' --sync ' . current_directory
+  let cmd = 'python3 ' . s:MySQLPyPath . ' --sync'
   let result = system(cmd)
 endfunction
 
