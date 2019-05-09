@@ -311,6 +311,12 @@ class Connection:
         self._sock = None
         self._rfile = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 
 def main():
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -328,7 +334,7 @@ def main():
     finally:
         if connection is not None:
             connection.close()
-            
-#TODO: python & vim ariac2 tool TBB       
+
+#TODO: python & vim ariac2 tool TBB
 if __name__ == '__main__':
     main()
