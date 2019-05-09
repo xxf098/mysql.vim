@@ -139,11 +139,9 @@ def synchronize_database_columns(data_path):
     tables = get_all_tables_new(config, print_table=False)
     pool = ThreadPool(processes=12)
     columns = pool.starmap(get_table_column, [(t, config) for t in tables], chunksize=12)
-    # TODO: with
-    f = open('columns.csv', 'w+')
-    for column in columns:
-        f.write('{}\r\n'.format(','.join(column)))
-    f.close()
+    with open('columns.csv', 'w+') as f:
+        for column in columns:
+            f.write('{}\r\n'.format(','.join(column)))
     # print(tables)
 
 def get_table_column(table, config):
