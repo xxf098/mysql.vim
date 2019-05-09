@@ -71,7 +71,7 @@ class Packet(object):
 
     def check_error(self):
         if self.is_error_packet():
-            raise Exception('fail to check packet')
+            raise Exception(self._data.decode())
 
     def read_struct(self, fmt):
         s = struct.Struct(fmt)
