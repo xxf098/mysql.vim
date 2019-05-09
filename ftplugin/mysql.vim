@@ -173,6 +173,21 @@ function! s:SynchronizeDatabase()
   let result = system(cmd)
 endfunction
 
+function! s:InitEnvironment()
+  let cmd = 'python3 ' . s:MySQLPyPath . ' --init'
+  let result = system(cmd)
+  let array = split(substitute(result, '\n', '', 'g'), ',')
+  if get(array, 0, 0) == '1'
+    let b:mysql_current_db = get(array, 1, '')
+    let b:mysql_current_port = get(array, 2, '')
+  endif
+endfunction
+
+if !exists('b:mysql_current_db')
+  call s:InitEnvironment()
+endif
+
+
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(0)<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
