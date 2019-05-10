@@ -1,3 +1,4 @@
+let s:ncm2_mysql_table_regex = '\(from\|describe\|show\s\+create\s\+table\)\s\+[a-zA-Z0-9_-]*'
 function! ncm2_mysql#on_complete(ctx)
   let l:startcol = a:ctx.startccol
   let col = col('.')
@@ -5,13 +6,9 @@ function! ncm2_mysql#on_complete(ctx)
   let current_line = tolower(getline('.'))
   let words = split(current_line, ' ')
   let before_line = strpart(current_line, 0, col)
-  let before_words = split(before_line, ' ')
-  let before_count = len(before_words)
-  if before_count >= 2
-    if before_words[before_count-1] =~? 'from' || before_words[before_count-2] =~? 'from'
-      let l:matches = get(b:, 'ncm2_mysql_tablenames', [])
-      map(l:matches, "{'word': v:val}")
-    endif
+  if before_line =~? s:ncm2_mysql_table_regex
+    let l:matches = get(b:, 'ncm2_mysql_tablenames', [])
+    map(l:matches, "{'word': v:val}")
   endif
   "complete from table column
   let from_pos = match(current_line, 'from', col)
