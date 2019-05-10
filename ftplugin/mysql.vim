@@ -207,7 +207,6 @@ if !exists('b:mysql_current_db')
   call s:InitEnvironment()
 endif
 
-
 nnoremap <buffer><silent> re :call g:RunSQLQueryUnderCursor()<cr>
 nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(0)<cr>
 nnoremap <buffer><silent> ex :call g:ExplainMySQLQuery()<cr>
