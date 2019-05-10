@@ -152,7 +152,6 @@ function! s:DisplayTableInfoRightWindow(result)
   setlocal nomodifiable
 endfunction
 
-"TODO: use cache result
 "TODO: async run
 function! s:ShowAllTableNames(...)
   let arg1 = get(a:, 1, '')
@@ -188,11 +187,19 @@ function! s:InitEnvironment()
   if filereadable(filename)
     let lines = readfile(filename)
     let table_names = []
+    let table_column_dict = {}
     for line in lines
-      let table_name = get(split(line, ','), 0, '')
+      let array = split(line, ',')
+      let table_name = get(array, 0, '')
+      let columns = []
+      if len(array) > 2
+        let columns = array[2:]
+      endif
+      let table_column_dict[table_name] = columns
       let table_names = add(table_names, table_name)
     endfor
     let b:ncm2_mysql_tablenames = table_names
+    let b:ncm2_mysql_table_columns = table_column_dict
   endif
 endfunction
 
