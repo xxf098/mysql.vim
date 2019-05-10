@@ -1,6 +1,4 @@
 " TODO: sort
-" TODO: manage table
-" TODO: Table Info
 " TODO: jump to foreign key
 " TODO: export data
 " TODO: trancate = true
@@ -154,17 +152,21 @@ function! s:DisplayTableInfoRightWindow(result)
   setlocal nomodifiable
 endfunction
 
-"TODO: show first 100 rows
+"TODO: use cache result
+"TODO: async run
 function! s:ShowAllTableNames(...)
   let arg1 = get(a:, 1, '')
   let cmd = 'python3 ' . s:MySQLPyPath . ' --table'
-  let result = system(cmd)
   let options = { 'display_table_name': 1 }
-  let b:ncm2_mysql_tablenames = split(result, '\n')
-  :call s:DisplaySQLQueryResult(result, options)
-  if arg1 == 'w'
-    call writefile(split(result, '\n'), '.table_names.data')
+  let result = ''
+  if exists('b:ncm2_mysql_tablenames')
+    let result = join(b:ncm2_mysql_tablenames, "\n")
   endif
+  if stridx(arg1, 'f') != -1
+    let result = system(cmd)
+    let b:ncm2_mysql_tablenames = split(result, '\n')
+  endif
+  :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
 function! s:SynchronizeDatabase()
