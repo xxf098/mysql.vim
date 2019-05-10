@@ -4,7 +4,8 @@
 " TODO: trancate = true
 " n jump forward column
 " N jump backward column
-let s:MySQLPyPath = '~/.config/nvim/plugged/mysql.vim/mysql.py'
+let nvim_dir = fnamemodify(expand("$MYVIMRC"), ":p:h")
+let s:MySQLPyPath = nvim_dir . '/plugged/mysql.vim/mysql.py'
 function! g:JumpToNextColumn(direction, count)
   let current_line = getline('.')
   let next_col_position = col('.')
@@ -168,10 +169,25 @@ function! s:ShowAllTableNames(...)
   :call s:DisplaySQLQueryResult(result, options)
 endfunction
 
+function! s:OnEvent(job_id, data, event)
+  if a:event == 'stdout'
+    let str = 'OK: sync database success'. join(a:data, '\n')
+  elseif a:event == 'stderr'
+    let str = 'Error: '. join(a:data, '\n')
+  else
+    let str = ''
+  endif
+  echom str
+endfunction
+
 function! s:SynchronizeDatabase()
-  let current_directory = expand('%:p:h')
-  let cmd = 'python3 ' . s:MySQLPyPath . ' --sync'
-  let result = system(cmd)
+  let s:callbacks = {
+  \ 'on_stdout': function('s:OnEvent'),
+  \ 'on_stderr': function('s:OnEvent'),
+  \ 'on_exit': function('s:OnEvent')
+  \ }
+  let cmd = ['python3', s:MySQLPyPath, '--sync']
+  call jobstart(cmd, s:callbacks)
 endfunction
 
 function! s:InitEnvironment()
