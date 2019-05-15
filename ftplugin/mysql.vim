@@ -69,6 +69,7 @@ function! s:DisplaySQLQueryResult(result, options)
   endif
   setlocal modifiable
   setlocal nowrap
+  setlocal clipboard=unnamedplus
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
   if get(options, 'display_table_name', 0) != 1
     nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
