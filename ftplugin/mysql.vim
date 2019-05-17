@@ -2,6 +2,7 @@
 " TODO: jump to foreign key
 " TODO: export data
 " TODO: trancate = true
+" TODO: tables show first 500 rows
 " n jump forward column
 " N jump backward column
 let nvim_dir = fnamemodify(expand("$MYVIMRC"), ":p:h")
@@ -141,12 +142,14 @@ function! s:DisplayTableInfoRightWindow(result)
     setlocal syntax=mysql
     execute 'vertical resize +12'
     setlocal buftype=nofile
+    setlocal clipboard=unnamedplus
   else
     execute outputWin . 'wincmd w'
   endif
   setlocal modifiable
   setlocal nowrap
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
+  nnoremap <silent><buffer> <C-c> :<C-u>normal! ggyG<CR>
   silent! normal! ggdG
   let lines = split(substitute(output, '[[:return:]]', '', 'g'), '\v\n')
   call setline('.', lines)
