@@ -1,4 +1,5 @@
 import socket
+from pg_lib import CONST
 
 class Connection():
 
@@ -26,9 +27,16 @@ class Connection():
             self._usock.connect((self.host, self.port))
             self._sock = self._usock.makefile(mode="rwb")
             self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+            self._startup_message()
         except socket.error as e:
             self._usock.close()
             raise
+
+    # https://www.postgresql.org/docs/9.1/protocol-message-formats.html
+    def _startup_message(self):
+        protocol = 196608
+
 def main():
     conn = Connection(
             username="pguser",
