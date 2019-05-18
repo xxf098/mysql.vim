@@ -1,4 +1,5 @@
-import socket, struct
+import socket
+from struct import pack, unpack
 from pg_lib.CONST import NULL_BYTE
 
 class Connection():
@@ -39,14 +40,14 @@ class Connection():
     # https://www.postgresql.org/docs/9.1/protocol-message-formats.html
     def _startup_message(self):
         protocol = 196608
-        msg = struct.pack('!i', protocol) + b'user\x00' + self.username + NULL_BYTE
+        msg = pack('!i', protocol) + b'user\x00' + self.username + NULL_BYTE
         if self.db is not None:
             database = self.db.encode('utf8') if isinstance(self.db, str) else self.db
             msg = msg + b'database\x00' + database + NULL_BYTE
         msg = msg + NULL_BYTE
-        self._write_bytes(struct.pack('!i', len(msg) + 4))
+        self._write_bytes(pack('!i', len(msg) + 4))
         self._write_bytes(msg)
-        code, length = struct.unpack('!ci', self._read_bytes(5))
+        code, length = unpack('!ci', self._read_bytes(5))
         print(code)
 
     def _write_bytes(self, bytes):
