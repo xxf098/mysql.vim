@@ -1,6 +1,8 @@
 import socket
-from struct import pack, unpack
+from struct import pack, unpack_from
+from hashlib import md5
 from pg_lib.CONST import NULL_BYTE
+from pg_lib import CONST
 
 class Connection():
 
@@ -33,6 +35,8 @@ class Connection():
             self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
             self._startup_message()
+            self._login()
+            self._get_pgserver_info()
         except socket.error as e:
             self._sock.close()
             raise
@@ -47,8 +51,32 @@ class Connection():
         msg = msg + NULL_BYTE
         self._write_bytes(pack('!i', len(msg) + 4))
         self._write_bytes(msg)
-        code, length = unpack('!ci', self._read_bytes(5))
-        print(code)
+
+    def _login(self):
+        code, length = self._read_code_length()
+        if code != CONST.AUTHENTICATION_REQUEST:
+            return
+        data = self._read_bytes(length - 4)
+        auth_code = unpack_from('!i', data)[0]
+
+        # only support md5
+        if auth_code != 5:
+            return
+        if self.password is None:
+            raise Exception('password is required for md5 auth')
+        salt = b''.join(unpack_from('!cccc', data, 4))
+        pwd = b'md5' + md5(
+                md5(self.password + self.username).hexdigest().encode('ascii') +
+                salt).hexdigest().encode('ascii')
+        self._send_message(CONST.PASSWORD, pwd + NULL_BYTE)
+        self._login()
+
+    def _get_pgserver_info(self):
+        code, length = self._read_code_length()
+        if code != CONST.PARAMETER_STATUS:
+            return
+        data = self._read_bytes(length - 4)
+        print(data)
 
     def _write_bytes(self, bytes):
         self._sock.settimeout(self._write_timeout)
@@ -70,6 +98,18 @@ class Connection():
             self._force_close()
             raise Exception('fail to read data')
         return data
+
+    def _read_code_length(self):
+        return unpack_from('!ci', self._read_bytes(5))
+
+    def _send_message(self, code, data):
+        try:
+            self._write_bytes(code)
+            self._write_bytes(pack('!i', len(data) + 4))
+            self._write_bytes(data)
+            self._write_bytes(CONST.FLUSH_MSG)
+        except:
+            raise
 
     def _force_close(self):
         if self._sock is None:

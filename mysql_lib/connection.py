@@ -3,6 +3,7 @@ from mysql_lib import CONST, _encryption, utils, Cursor
 from mysql_lib.packet import Packet, ColumnPacket
 
 class DBConfig:
+
     def __init__(self, host='localhost', user='root', password='', db=None, port=3306,
             connect_timeout=None, charset=''):
         self.host = host
@@ -106,7 +107,8 @@ class QueryResult(object):
             row.append(data)
         return tuple(row)
 
-class Connection:
+class Connection():
+
     def __init__(self, config=None):
         self.encoding = config.encoding
         self.host = config.host
