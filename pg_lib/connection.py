@@ -23,6 +23,7 @@ class Connection():
         self._read_timeout = connect_timeout
         self.encoding = 'utf8'
         self._sock = None
+        self._server_info = []
         self.connect()
 
     def connect(self):
@@ -37,6 +38,7 @@ class Connection():
             self._startup_message()
             self._login()
             self._get_pgserver_info()
+            self._ready_for_query()
         except socket.error as e:
             self._sock.close()
             raise
@@ -74,9 +76,23 @@ class Connection():
     def _get_pgserver_info(self):
         code, length = self._read_code_length()
         if code != CONST.PARAMETER_STATUS:
+            if code == CONST.BACKEND_KEY_DATA:
+                self._get_backend_data(length)
             return
         data = self._read_bytes(length - 4)
-        print(data)
+        pos = data.find(NULL_BYTE)
+        key, value = data[:pos], data[pos + 1:-1]
+        self._server_info.append((key, value))
+        self._get_pgserver_info()
+
+    def _get_backend_data(self, length):
+        self._backend_key_data = self._read_bytes(length - 4)
+
+    def _ready_for_query(self):
+        code, length = self._read_code_length()
+        if code != CONST.READY_FOR_QUERY:
+            raise Exception('Not ready for query')
+
 
     def _write_bytes(self, bytes):
         self._sock.settimeout(self._write_timeout)
