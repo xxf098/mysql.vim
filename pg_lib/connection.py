@@ -1,4 +1,4 @@
-import socket
+import socket, os
 from struct import pack, unpack_from
 from hashlib import md5
 from pg_lib.CONST import NULL_BYTE
@@ -13,15 +13,15 @@ class Connection():
             port=5432,
             db=None,
             connect_timeout=None):
+        self.encoding = 'utf8'
         self.host = host
-        self.username = username.encode('utf8') if isinstance(username, str) else username
-        self.password = password.encode('utf8') if isinstance(password, str) else password
+        self.username = username.encode(self.encoding) if isinstance(username, str) else username
+        self.password = password.encode(self.encoding) if isinstance(password, str) else password
         self.db = db
         self.port = port
         self.connect_timeout = connect_timeout
         self._write_timeout = connect_timeout
         self._read_timeout = connect_timeout
-        self.encoding = 'utf8'
         self._sock = None
         self._server_info = []
         self.connect()
@@ -42,6 +42,17 @@ class Connection():
         except socket.error as e:
             self._sock.close()
             raise
+
+    def execute(self, statement):
+        pid = os.getpid()
+        statement_name_bin = 'pg_statement_{}_1'.format(pid).encode('ascii') + NULL_BYTE
+        statement_bin = statement.encode(self.encoding) + NULL_BYTE
+        msg = statement_name_bin + statement_bin
+        self._send_message(CONST.PARSE, msg)
+        self._send_message(CONST.DESCRIBE, CONST.STATEMENT + statement_name_bin)
+        self._write_bytes(CONST.SYNC_MSG)
+        self._rfile.flush()
+        self.handle_messages()
 
     # https://www.postgresql.org/docs/9.1/protocol-message-formats.html
     def _startup_message(self):
@@ -92,6 +103,29 @@ class Connection():
         code, length = self._read_code_length()
         if code != CONST.READY_FOR_QUERY:
             raise Exception('Not ready for query')
+
+    def handle_messages(self):
+        #TODO: handle error
+        code = None
+        code_map = {
+                CONST.PARSE_COMPLETE: '',
+                CONST.PARAMETER_DESCRIPTION: '',
+                CONST.ROW_DESCRIPTION: '',
+                CONST.BIND_COMPLETE: '',
+                CONST.DATA_ROW: ''
+                }
+        while code != CONST.READY_FOR_QUERY:
+            code, length = unpack_from('!ci', self._read_bytes(5))
+            if code == CONST.PARSE_COMPLETE:
+                pass
+            elif code == CONST.PARAMETER_DESCRIPTION:
+                pass
+            elif code == CONST.ROW_DESCRIPTION:
+                pass
+            elif code == CONST.BIND_COMPLETE:
+                pass
+            elif code == CONST.DATA_ROW:
+                pass
 
 
     def _write_bytes(self, bytes):
@@ -146,6 +180,8 @@ def main():
             db="testdb",
             password="123456",
             connect_timeout=None)
+    sql = 'select * from country;'
+    conn.execute(sql)
 
 if __name__ == '__main__':
     main()
