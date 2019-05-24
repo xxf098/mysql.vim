@@ -1,6 +1,6 @@
 import socket, os, json, traceback, struct
 from mysql_lib import CONST, _encryption, utils, Cursor
-from mysql_lib.packet import Packet, ColumnPacket
+from mysql_lib.packet import Packet, ColumnPacket, OKPacket
 
 class DBConfig:
 
@@ -50,9 +50,19 @@ class QueryResult(object):
     def read(self):
         try:
             first_packet = self.connection._read_packet()
-            self._read_result_packet(first_packet)
+            if first_packet._is_ok_packet():
+                self._read_ok_packet(first_packet)
+            else:
+                self._read_result_packet(first_packet)
         finally:
             self.connection = None
+    
+    def _read_ok_packet(self, first_packet):
+        ok_packet = OKPacket(first_packet)
+        self.affected_rows = ok_packet.affected_rows
+        self.message = ok_packet.message
+        self.has_next = ok_packet.has_next
+        self.rows = [[self.message.decode()]]     
 
     def _read_result_packet(self, first_packet):
         self.field_count = first_packet.read_length_encoded_integer()
@@ -328,7 +338,8 @@ def main():
     try:
         connection = Connection(config)
         # sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config.db)
-        sql = 'show create table organizations;'
+        # sql = 'show create table users;'
+        sql = "UPDATE users SET name = '123' where id = '123456';"
         result = connection.run_sql(sql)
         [print(x) for row in result.rows for x in row]
     except Exception as e:
