@@ -56,6 +56,24 @@ function! s:JumpToColumnByName(columnName)
   endif
 endfunction
 
+function! s:ConvertDisplayLinesToList(lines)
+  let b:TableRows = []
+  for line in a:lines
+    if match(line, '^+-\|^|-') == 0
+      continue
+    endif
+    let row = split(line, '\s*|\s*')
+    call add(b:TableRows, row)
+  endfor
+endfunction
+
+function! s:SaveCurrentRowData()
+  if !exists('b:TableName')
+    return
+  endif
+  let line = getline('.')
+endfunction
+
 function! s:DisplaySQLQueryResult(result, options)
   let options = a:options
   let output = a:result
@@ -85,6 +103,10 @@ function! s:DisplaySQLQueryResult(result, options)
   if get(options, 'hide_header') == 1
     let idx = 0
     while idx < len(lines)
+      if lines[idx] =~? '^TableName:'
+        let b:TableName = strpart(lines[idx], 11)
+        call remove(lines, idx)
+      endif
       if lines[idx] =~? '^Headers:'
         let b:TableHeaders = split(strpart(lines[idx], 9), ',')
         call remove(lines, idx)
@@ -98,6 +120,7 @@ function! s:DisplaySQLQueryResult(result, options)
   if get(a:options, 'file_type', '') != ''
     setlocal syntax=mysql
   endif
+  " call s:ConvertDisplayLinesToList(lines)
 endfunction
 
 function! g:RunSQLQueryUnderCursor()
