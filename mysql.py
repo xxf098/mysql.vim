@@ -43,7 +43,7 @@ def get_bottomline (lengths):
     dashes.pop()
     return '+' + ''.join(dashes) + '+'
 
-def print_rows (rows):
+def print_rows (rows, tablename):
     if len(rows) == 0:
         return
     headers = list(rows[0].keys())
@@ -56,6 +56,8 @@ def print_rows (rows):
         values.append(value)
     header_str = padding_row(headers, lengths)
     table_line = get_middleline(lengths)
+    if tablename is not None:
+        print(f'TableName: {tablename}')
     print('Headers: ' + ','.join(headers))
     print(get_topline(lengths))
     print(header_str)
@@ -72,6 +74,13 @@ def print_show_table(result):
     create_table = result[0].get('Create Table', '')
     print(create_table)
 
+def get_tablename_from_sql(sql):
+    pattern = re.compile('from\s+(.*?)\s+', re.I)
+    match = pattern.search(sql)
+    if match is None:
+        return None
+    return match.group(1)
+
 def run_sql_query(sql, config):
     connection = connect(**config, cursorclass=cursors.DictCursor)
     try:
@@ -81,7 +90,8 @@ def run_sql_query(sql, config):
             if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
                 print_show_table(result)
             else:
-                print_rows(result)
+                tablename = get_tablename_from_sql(sql)
+                print_rows(result, tablename)
     except Exception as e:
         print(traceback.print_exc())
     finally:
