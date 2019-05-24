@@ -65,6 +65,9 @@ class Packet(object):
 
     def is_eof_packet(self):
         return self._data[0:1] == b'\xfe' and len(self._data) < 9
+    
+    def _is_ok_packet(self):
+        return self._data[0:1] == b'\0' and len(self._data) >= 7    
 
     def is_error_packet(self):
         return self._data[0:1] == b'\xff'
@@ -78,6 +81,17 @@ class Packet(object):
         result = s.unpack_from(self._data, self._position)
         self._position += s.size
         return result
+
+    def read_all(self):
+        result = self._data[self._position:]
+        self._position = None
+        return result    
+
+    def advance(self, length):
+        new_position = self._position + length
+        if new_position < 0 or new_position > len(self._data):
+            raise Exception('Invalid advance amount')
+        self._position = new_position    
 
 class ColumnPacket(Packet):
     def __init__(self, data, encoding='utf8'):
@@ -109,3 +123,15 @@ class ColumnPacket(Packet):
             mblen = CONST.MBLENGTH.get(self.charsetnr, 1)
             return self.length // mblen
         return self.length
+
+class OKPacket():
+    def __init__(self, from_packet):
+        if not from_packet._is_ok_packet():
+            raise Exception('invalid packet type')
+        self.packet = from_packet
+        self.packet.advance(1)
+        self.affected_rows = self.packet.read_length_encoded_integer()
+        self.insert_id = self.packet.read_length_encoded_integer()
+        self.server_status, self.warning_count = self.packet.read_struct('<HH')
+        self.message = self.packet.read_all()
+        self.has_next = self.server_status & CONST.SERVER_MORE_RESULTS_EXISTS
