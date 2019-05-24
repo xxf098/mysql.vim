@@ -1,4 +1,4 @@
-let s:ncm2_mysql_table_regex = '\(from\|describe\|show\s\+create\s\+table\)\s\+[a-zA-Z0-9_-]*'
+let s:ncm2_mysql_table_regex = '\(from\|describe\|update\|show\s\+create\s\+table\)\s\+[a-zA-Z0-9_-]*'
 function! ncm2_mysql#on_complete(ctx)
   let l:startcol = a:ctx.startccol
   let col = col('.')
