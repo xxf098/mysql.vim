@@ -68,6 +68,32 @@ def print_rows (rows, tablename):
         print(valueStr)
     print(get_bottomline(lengths))
 
+def print_query_result (query_result, tablename):
+    if query_result is None:
+        return
+    headers = query_result.column_names
+    lengths = [len(x) for x in headers]
+    rows = query_result.rows
+    values = []
+    for row in rows:
+        value = row
+        value_lens = [get_str_length(x) if x is not None else 0 for x in value]
+        lengths = [ x if x > lengths[i] else lengths[i] for i, x in enumerate(value_lens)]
+        values.append(value)
+    header_str = padding_row(headers, lengths)
+    table_line = get_middleline(lengths)
+    if tablename is not None:
+        print(f'TableName: {tablename}')
+    print('Headers: ' + ','.join(headers))
+    print(get_topline(lengths))
+    print(header_str)
+    print(table_line)
+    for value in values:
+        valueStr = padding_row(value, lengths)
+        # print(table_line)
+        print(valueStr)
+    print(get_bottomline(lengths))
+
 def print_show_table(result):
     if len(result) < 1:
         return
@@ -131,6 +157,9 @@ class MySQLExecutor(object):
                 if (re.match(r"^'?SHOW CREATE TABLE", sql, re.IGNORECASE)):
                     [print(row[1]) for row in result.rows if print_table]
                     return result.rows[0][1]
+                else:
+                    tablename = get_tablename_from_sql(sql)
+                    print_query_result(result, tablename)
                 return result
             except Exception as e:
                 print(traceback.print_exc())
@@ -192,7 +221,7 @@ def main():
     elif (re.match(r"^'?SHOW CREATE TABLE", arg1, re.IGNORECASE)):
         executor.execute_query(arg1)
     else:
-        run_sql_query(arg1, config)
+        executor.execute_query(arg1)
 
 #TODO: odbc flavor
 #TODO: vim refactor vscode mssql
