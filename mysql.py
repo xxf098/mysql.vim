@@ -1,4 +1,3 @@
-from mysqlpy import connect, cursors
 import json, os, sys, traceback, re
 from functools import reduce
 from mysql_lib import Config, Connection, DBConfig
@@ -107,42 +106,11 @@ def get_tablename_from_sql(sql):
         return None
     return match.group(1)
 
-def run_sql_query(sql, config):
-    connection = connect(**config, cursorclass=cursors.DictCursor)
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            result = cursor.fetchall()
-            if (re.match(r'^SHOW CREATE TABLE', sql, re.IGNORECASE)):
-                print_show_table(result)
-            else:
-                tablename = get_tablename_from_sql(sql)
-                print_rows(result, tablename)
-    except Exception as e:
-        print(traceback.print_exc())
-    finally:
-        connection.close()
-
-def get_all_tables(conf):
-    config = conf.load()
-    connection = connect(**config, cursorclass=cursors.DictCursor)
-    sql = "SELECT table_name FROM information_schema.tables WHERE table_type = 'base table' AND table_schema='{}'".format(config['db'])
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(sql)
-            result = cursor.fetchall()
-            [print(x['table_name']) for x in result]
-    except Exception as e:
-        print(traceback.print_exc())
-    finally:
-        connection.close()
-
 def load_config():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     config_path = os.path.join(dir_path, 'config.json')
     config = DBConfig.load(config_path)
     return config
-
 
 #TODO: with
 class MySQLExecutor(object):

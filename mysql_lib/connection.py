@@ -56,13 +56,14 @@ class QueryResult(object):
                 self._read_result_packet(first_packet)
         finally:
             self.connection = None
-    
+
     def _read_ok_packet(self, first_packet):
         ok_packet = OKPacket(first_packet)
         self.affected_rows = ok_packet.affected_rows
         self.message = ok_packet.message
         self.has_next = ok_packet.has_next
-        self.rows = [[self.message.decode()]]     
+        self.rows = [[self.message.decode()]]
+        self.column_names = ['result']
 
     def _read_result_packet(self, first_packet):
         self.field_count = first_packet.read_length_encoded_integer()
