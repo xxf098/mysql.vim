@@ -3,8 +3,37 @@
 " TODO: export data
 " TODO: trancate = true
 " TODO: tables show first 500 rows
-" n jump forward column
-" N jump backward column
+" keyword auto uppercase
+let s:SQLKeywords = [
+      \'as',
+      \'by',
+      \'distinct',
+      \'from',
+      \'group',
+      \'inner', 'is', 'in',
+      \'join',
+      \'limit', 'left',
+      \'null',
+      \'outer', 'or', 'order', 'on',
+      \'select', 'set',
+      \'right',
+      \'where',
+      \'update'
+      \]
+function! s:UppercaseKeyword(key)
+  if synIDattr(synIDtrans(synID(line("."), col(".") - 1, 0)), "name") =~# 'Comment\|String'
+    return a:key
+  endif
+  return toupper(a:key)
+endfunction
+
+function! s:SetSQLKeywordInoreabbrev(keys) abort
+  for key in a:keys
+    exec "inoreabbrev <expr> <buffer> " . tolower(key) .  " <SID>UppercaseKeyword('" . key ."')"
+  endfor
+endfun
+
+call s:SetSQLKeywordInoreabbrev(s:SQLKeywords)
 let nvim_dir = fnamemodify(expand("$MYVIMRC"), ":p:h")
 let s:MySQLPyPath = nvim_dir . '/plugged/mysql.vim/mysql.py'
 function! g:JumpToNextColumn(direction, count)
