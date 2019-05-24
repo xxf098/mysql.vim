@@ -54,3 +54,6 @@ MBLENGTH = {
         88:2,
         91:2
         }
+
+# SERVER_STATUS
+SERVER_MORE_RESULTS_EXISTS = 8
