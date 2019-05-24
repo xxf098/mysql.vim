@@ -73,8 +73,8 @@ function! s:DisplaySQLQueryResult(result, options)
   setlocal clipboard=unnamedplus
   nnoremap <silent><buffer> q :<C-u>bd!<CR>
   if get(options, 'display_table_name', 0) != 1
-    nnoremap <silent><buffer> n :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
-    nnoremap <silent><buffer> N :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
+    nnoremap <silent><buffer> <c-j> :<C-U>call g:JumpToNextColumn('forward', v:count1)<cr>
+    nnoremap <silent><buffer> <c-k> :<C-U>call g:JumpToNextColumn('backward', v:count1)<cr>
     command! -complete=customlist,s:CompleteTableHeaders -nargs=1 Head call s:JumpToColumnByName(<f-args>)
   else
     nnoremap <buffer><silent> ta :call g:DescribeTableUnderCursor(1)<cr>
