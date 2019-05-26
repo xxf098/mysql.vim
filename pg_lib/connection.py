@@ -8,12 +8,13 @@ class MessageHandler():
 
     def __init__(self):
         self.code_map = {
-                CONST.PARSE_COMPLETE: '',
-                CONST.PARAMETER_DESCRIPTION: '',
-                CONST.ROW_DESCRIPTION: '',
+                CONST.PARSE_COMPLETE: self.parse_complete,
+                CONST.PARAMETER_DESCRIPTION: self.parameter_description,
+                CONST.ROW_DESCRIPTION: self.row_description,
                 CONST.BIND_COMPLETE: '',
                 CONST.DATA_ROW: '',
-                CONST.EMPTY_QUERY_RESPONSE: self.empty_query_response
+                CONST.EMPTY_QUERY_RESPONSE: self.empty_query_response,
+                CONST.READY_FOR_QUERY: self.ready_for_query
                 }
 
     def handle(self, code, data):
@@ -22,6 +23,22 @@ class MessageHandler():
 
     def empty_query_response(self, data):
         raise Exception('query was empty')
+
+    def parse_complete(self, data):
+        pass
+
+    def parameter_description(self, data):
+        pass
+
+    def ready_for_query(self, data):
+        pass
+
+    def row_description(self, data):
+        row_count = unpack_from('!h', data)[0]
+        idx = 2
+        for i in range(row_count):
+            pass
+        print(data)
 
     def default_message(self, data):
         pass
@@ -69,13 +86,8 @@ class Connection():
     def execute(self, statement):
         pid = os.getpid()
         statement_name_bin = 'pg_statement_{}_1'.format(pid).encode('ascii') + NULL_BYTE
-        statement_bin = statement.encode(self.encoding) + NULL_BYTE
-        msg = statement_name_bin + statement_bin + NULL_BYTE + NULL_BYTE
-
-        val = bytearray(statement_name_bin)
-        val.extend(statement.encode(self.encoding) + NULL_BYTE)
-        val.extend(NULL_BYTE * 2)
-        self._send_message(CONST.PARSE, val)
+        msg  = statement_name_bin + statement.encode(self.encoding) + NULL_BYTE * 3
+        self._send_message(CONST.PARSE, msg)
         self._send_message(CONST.DESCRIBE, CONST.STATEMENT + statement_name_bin)
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
@@ -136,7 +148,7 @@ class Connection():
         code = None
         while code != CONST.READY_FOR_QUERY:
             code, length = unpack_from('!ci', self._read_bytes(5))
-            self.handler.handle(code, b'')
+            self.handler.handle(code, self._read_bytes(length - 4))
 
 
     def _write_bytes(self, bytes):
@@ -191,7 +203,7 @@ def main():
             db="testdb",
             password="123456",
             connect_timeout=None)
-    sql = 'select 1;'
+    sql = 'select * from country limit 10;'
     conn.execute(sql)
 
 if __name__ == '__main__':
