@@ -34,11 +34,19 @@ class MessageHandler():
         pass
 
     def row_description(self, data):
-        row_count = unpack_from('!h', data)[0]
         idx = 2
-        for i in range(row_count):
-            pass
-        print(data)
+        result = []
+        while idx < len(data):
+            name = data[idx:data.find(NULL_BYTE, idx)]
+            idx += len(name) + 1
+            field = dict(
+                zip((
+                    "table_oid", "column_attrnum", "type_oid", "type_size",
+                    "type_modifier", "format"), unpack_from('!ihihih', data, idx)))
+            field['name'] = name
+            idx += 18
+            result.append(field)
+        return result
 
     def default_message(self, data):
         pass
