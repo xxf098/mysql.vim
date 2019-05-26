@@ -4,6 +4,28 @@ from hashlib import md5
 from pg_lib.CONST import NULL_BYTE
 from pg_lib import CONST
 
+class MessageHandler():
+
+    def __init__(self):
+        self.code_map = {
+                CONST.PARSE_COMPLETE: '',
+                CONST.PARAMETER_DESCRIPTION: '',
+                CONST.ROW_DESCRIPTION: '',
+                CONST.BIND_COMPLETE: '',
+                CONST.DATA_ROW: '',
+                CONST.EMPTY_QUERY_RESPONSE: self.empty_query_response
+                }
+
+    def handle(self, code, data):
+        handle_func = self.default_message if self.code_map[code] is None else self.code_map[code]
+        handle_func(data)
+
+    def empty_query_response(self, data):
+        raise Exception('query was empty')
+
+    def default_message(self, data):
+        pass
+
 class Connection():
 
     def __init__ (self,
@@ -24,6 +46,7 @@ class Connection():
         self._read_timeout = connect_timeout
         self._sock = None
         self._server_info = []
+        self.handler = MessageHandler()
         self.connect()
 
     def connect(self):
@@ -47,8 +70,12 @@ class Connection():
         pid = os.getpid()
         statement_name_bin = 'pg_statement_{}_1'.format(pid).encode('ascii') + NULL_BYTE
         statement_bin = statement.encode(self.encoding) + NULL_BYTE
-        msg = statement_name_bin + statement_bin
-        self._send_message(CONST.PARSE, msg)
+        msg = statement_name_bin + statement_bin + NULL_BYTE + NULL_BYTE
+
+        val = bytearray(statement_name_bin)
+        val.extend(statement.encode(self.encoding) + NULL_BYTE)
+        val.extend(NULL_BYTE * 2)
+        self._send_message(CONST.PARSE, val)
         self._send_message(CONST.DESCRIBE, CONST.STATEMENT + statement_name_bin)
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
@@ -101,31 +128,15 @@ class Connection():
 
     def _ready_for_query(self):
         code, length = self._read_code_length()
+        data = self._read_bytes(length - 4)
         if code != CONST.READY_FOR_QUERY:
             raise Exception('Not ready for query')
 
     def handle_messages(self):
-        #TODO: handle error
         code = None
-        code_map = {
-                CONST.PARSE_COMPLETE: '',
-                CONST.PARAMETER_DESCRIPTION: '',
-                CONST.ROW_DESCRIPTION: '',
-                CONST.BIND_COMPLETE: '',
-                CONST.DATA_ROW: ''
-                }
         while code != CONST.READY_FOR_QUERY:
             code, length = unpack_from('!ci', self._read_bytes(5))
-            if code == CONST.PARSE_COMPLETE:
-                pass
-            elif code == CONST.PARAMETER_DESCRIPTION:
-                pass
-            elif code == CONST.ROW_DESCRIPTION:
-                pass
-            elif code == CONST.BIND_COMPLETE:
-                pass
-            elif code == CONST.DATA_ROW:
-                pass
+            self.handler.handle(code, b'')
 
 
     def _write_bytes(self, bytes):
@@ -180,7 +191,7 @@ def main():
             db="testdb",
             password="123456",
             connect_timeout=None)
-    sql = 'select * from country;'
+    sql = 'select 1;'
     conn.execute(sql)
 
 if __name__ == '__main__':
