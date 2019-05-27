@@ -155,6 +155,7 @@ class Connection():
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
         self.handle_messages(response)
+        return { 'rows': response['rows'] }
 
     # https://www.postgresql.org/docs/9.1/protocol-message-formats.html
     def _startup_message(self):
@@ -258,6 +259,16 @@ class Connection():
                     1114: (CONST.BINARY_FORMAT, parse_timestamp)
                 })
 
+    def close(self):
+        try:
+            self._write_bytes(CONST.TERMINATE_MSG)
+            self._rfile.flush()
+            self._sock.close()
+        except:
+            pass
+        finally:
+            self._sock = None
+            self._rwfile = None
 
     def _force_close(self):
         if self._sock is None:
@@ -279,7 +290,10 @@ def main():
             password="123456",
             connect_timeout=None)
     sql = 'select * from country limit 10;'
-    conn.execute(sql)
+    result = conn.execute(sql)
+    conn.close()
+    for row in result['rows']:
+        print(row)
 
 if __name__ == '__main__':
     main()
