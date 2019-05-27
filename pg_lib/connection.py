@@ -3,18 +3,24 @@ from struct import pack, unpack_from
 from hashlib import md5
 from pg_lib.CONST import NULL_BYTE
 from pg_lib import CONST
+from collections import defaultdict
+import datetime
+from calendar import timegm
 
 class MessageHandler():
 
-    def __init__(self):
+    def __init__(self, encoding='utf8'):
+        self.encoding = encoding
         self.code_map = {
                 CONST.PARSE_COMPLETE: self.parse_complete,
                 CONST.PARAMETER_DESCRIPTION: self.parameter_description,
                 CONST.ROW_DESCRIPTION: self.row_description,
-                CONST.BIND_COMPLETE: '',
-                CONST.DATA_ROW: '',
+                CONST.BIND_COMPLETE: self.bind_complete,
+                CONST.DATA_ROW: self.data_row,
                 CONST.EMPTY_QUERY_RESPONSE: self.empty_query_response,
-                CONST.READY_FOR_QUERY: self.ready_for_query
+                CONST.READY_FOR_QUERY: self.ready_for_query,
+                CONST.COMMAND_COMPLETE: self.command_complete,
+                CONST.ERROR_RESPONSE: self.error_response
                 }
 
     def handle(self, code, data, response):
@@ -47,10 +53,34 @@ class MessageHandler():
             field['name'] = name
             idx += 18
             result.append(field)
+        # 23 1043 1114
         response['row_desc'] = result
 
-    def default_message(self, data):
+    def bind_complete(self, data, response):
         pass
+
+    def data_row(self, data, response):
+        pass
+
+    def command_complete(self, data, response):
+        pass
+
+    def default_message(self, data, response):
+        pass
+
+    def error_response(self, data, response):
+        msg = dict((s[:1].decode(self.encoding), s[1:].decode(self.encoding))
+                for s in data.split(NULL_BYTE) if s != b'')
+        return msg
+
+
+def parse_int4(data, offset, length):
+    return unpack_from('!i', data, offset)[0]
+
+EPOCH = datetime.datetime(2000, 1, 1)
+EPOCH_SECONDS = timegm(EPOCH.timetuple())
+def parse_timestamp(data, offset, length):
+    return datetime.datetime.utcfromtimestamp(EPOCH_SECONDS + unpack_from('!d', data, offset)[0])
 
 class Connection():
 
@@ -73,6 +103,7 @@ class Connection():
         self._sock = None
         self._server_info = []
         self.handler = MessageHandler()
+        self._init_type_info()
         self.connect()
 
     def connect(self):
@@ -98,6 +129,17 @@ class Connection():
         msg  = statement_name_bin + statement.encode(self.encoding) + NULL_BYTE * 3
         self._send_message(CONST.PARSE, msg)
         self._send_message(CONST.DESCRIBE, CONST.STATEMENT + statement_name_bin)
+        self._write_bytes(CONST.SYNC_MSG)
+        self._rfile.flush()
+        response = self.handle_messages()
+
+        column_format = tuple(self.type_info[f['type_oid']][0] for f in response['row_desc'])
+        bind_info = NULL_BYTE + statement_name_bin + NULL_BYTE * 4
+        bind_info = bind_info + pack('!h', len(column_format)) + pack('!' + 'h'* len(column_format), *column_format)
+
+        self._send_message(CONST.BIND, bind_info)
+        self._write_bytes(CONST.EXECUTE_MSG)
+        self._write_bytes(CONST.FLUSH_MSG)
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
         self.handle_messages()
@@ -159,7 +201,7 @@ class Connection():
         while code != CONST.READY_FOR_QUERY:
             code, length = unpack_from('!ci', self._read_bytes(5))
             response =  self.handler.handle(code, self._read_bytes(length - 4), response)
-        print('end')
+        return response
 
 
     def _write_bytes(self, bytes):
@@ -194,6 +236,17 @@ class Connection():
             self._write_bytes(CONST.FLUSH_MSG)
         except:
             raise
+
+    def _init_type_info(self):
+        def parse_text(data, offset, length):
+            return str(data[offset: offset + length], self.encoding)
+        self.type_info = defaultdict(
+                lambda: (CONST.TEXT_FORMAT, parse_text), {
+                    23: (CONST.BINARY_FORMAT, parse_int4),
+                    1043: (CONST.BINARY_FORMAT, parse_text),
+                    1114: (CONST.BINARY_FORMAT, parse_timestamp)
+                })
+
 
     def _force_close(self):
         if self._sock is None:
