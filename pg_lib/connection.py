@@ -17,23 +17,24 @@ class MessageHandler():
                 CONST.READY_FOR_QUERY: self.ready_for_query
                 }
 
-    def handle(self, code, data):
+    def handle(self, code, data, response):
         handle_func = self.default_message if self.code_map[code] is None else self.code_map[code]
-        handle_func(data)
+        handle_func(data, response)
+        return response
 
-    def empty_query_response(self, data):
+    def empty_query_response(self, data, response):
         raise Exception('query was empty')
 
-    def parse_complete(self, data):
+    def parse_complete(self, data, response):
         pass
 
-    def parameter_description(self, data):
+    def parameter_description(self, data, response):
         pass
 
-    def ready_for_query(self, data):
+    def ready_for_query(self, data, response):
         pass
 
-    def row_description(self, data):
+    def row_description(self, data, response):
         idx = 2
         result = []
         while idx < len(data):
@@ -46,7 +47,7 @@ class MessageHandler():
             field['name'] = name
             idx += 18
             result.append(field)
-        return result
+        response['row_desc'] = result
 
     def default_message(self, data):
         pass
@@ -154,9 +155,11 @@ class Connection():
 
     def handle_messages(self):
         code = None
+        response = {}
         while code != CONST.READY_FOR_QUERY:
             code, length = unpack_from('!ci', self._read_bytes(5))
-            self.handler.handle(code, self._read_bytes(length - 4))
+            response =  self.handler.handle(code, self._read_bytes(length - 4), response)
+        print('end')
 
 
     def _write_bytes(self, bytes):
