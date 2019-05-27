@@ -60,10 +60,21 @@ class MessageHandler():
         pass
 
     def data_row(self, data, response):
-        pass
+        idx = 2
+        row = []
+        for parse_func in response['parse_funcs']:
+            length = unpack_from('!i', data, idx)[0]
+            idx += 4
+            if length == -1:
+                row.append(None)
+            else:
+                row.append(parse_func(data, idx, length))
+                idx += length
+        response['rows'].append(row)
 
     def command_complete(self, data, response):
-        pass
+        values = data[:-1].split(b' ')
+        response['row_count'] = int(values[-1])
 
     def default_message(self, data, response):
         pass
@@ -131,7 +142,8 @@ class Connection():
         self._send_message(CONST.DESCRIBE, CONST.STATEMENT + statement_name_bin)
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
-        response = self.handle_messages()
+        response = self.handle_messages(response = { 'rows': [] })
+        response['parse_funcs'] = tuple(self.type_info[f['type_oid']][1] for f in response['row_desc'])
 
         column_format = tuple(self.type_info[f['type_oid']][0] for f in response['row_desc'])
         bind_info = NULL_BYTE + statement_name_bin + NULL_BYTE * 4
@@ -142,7 +154,7 @@ class Connection():
         self._write_bytes(CONST.FLUSH_MSG)
         self._write_bytes(CONST.SYNC_MSG)
         self._rfile.flush()
-        self.handle_messages()
+        self.handle_messages(response)
 
     # https://www.postgresql.org/docs/9.1/protocol-message-formats.html
     def _startup_message(self):
@@ -195,9 +207,8 @@ class Connection():
         if code != CONST.READY_FOR_QUERY:
             raise Exception('Not ready for query')
 
-    def handle_messages(self):
+    def handle_messages(self, response = {}):
         code = None
-        response = {}
         while code != CONST.READY_FOR_QUERY:
             code, length = unpack_from('!ci', self._read_bytes(5))
             response =  self.handler.handle(code, self._read_bytes(length - 4), response)

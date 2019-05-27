@@ -40,6 +40,7 @@ RESPONSE_CODE = "C"
 FLUSH_MSG = create_message(FLUSH)
 SYNC_MSG = create_message(SYNC)
 EXECUTE_MSG = create_message(EXECUTE, NULL_BYTE + pack('!i', 0))
+TERMINATE_MSG = create_message(TERMINATE)
 
 TEXT_FORMAT = 0
 BINARY_FORMAT = 1
